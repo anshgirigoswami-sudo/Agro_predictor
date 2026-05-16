@@ -1,0 +1,118 @@
+:root{
+  /* Color tokens - vibrancy by opacity */
+  --bg-light: rgba(255,255,255,1);
+  --bg-dark: rgba(28,28,30,1);
+  --text-light: rgba(28,28,30,1);
+  --text-dark: rgba(255,255,255,1);
+  --muted-light: rgba(0,0,0,0.6);
+  --muted-dark: rgba(255,255,255,0.65);
+  --accent-light: #34c759; /* emerald for light */
+  --accent-dark: #30d158; /* neon mint for dark */
+  --card-border-light: rgba(255,255,255,0.4);
+  --card-border-dark: rgba(255,255,255,0.12);
+}
+
+
+html,body{height:100%;}
+body{
+  background:var(--bg-light);
+  color:var(--text-light);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+
+/* gentle spring transition */
+*{transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);}
+
+/* Sidebar */
+aside{background:transparent}
+
+/* Glassmorphism base for cards */
+.glass-card{
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid var(--card-border-light);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.03), 0 20px 50px rgba(0,0,0,0.08);
+  border-radius: 12px;
+  transform-style: preserve-3d;
+}
+
+/* Dark mode glass */
+.dark .glass-card{
+  background: rgba(28,28,30,0.75);
+  border: 1px solid var(--card-border-dark);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.45), 0 30px 80px rgba(0,0,0,0.6);
+}
+
+/* Floating card variant (deeper) */
+.card-floating{ box-shadow: 0 10px 40px rgba(2,6,23,0.06), 0 30px 80px rgba(2,6,23,0.12); }
+
+/* Form controls */
+select, input[type=number]{-webkit-appearance:none;appearance:none;border:1px solid var(--border);padding:.5rem;border-radius:.75rem;font-size:0.95rem}
+
+/* Slider */
+input[type=range].slider{width:100%;height:28px;background:transparent}
+input[type=range].slider::-webkit-slider-runnable-track{height:8px;background:#f3f4f6;border-radius:999px}
+input[type=range].slider::-webkit-slider-thumb{-webkit-appearance:none;margin-top:-6px;width:20px;height:20px;background:#111827;border-radius:50%;box-shadow:0 4px 10px rgba(17,24,39,0.15);transform:translateY(0)}
+input[type=range].slider:active::-webkit-slider-thumb{transform:scale(0.98)}
+
+/* Remove default focus outline and replace with subtle ring */
+select:focus, input[type=number]:focus, input[type=range]:focus{outline:none;box-shadow:0 0 0 4px rgba(14,165,164,0.08);border-color:var(--accent-light)}
+
+/* Buttons */
+button{font-weight:600;border:none}
+button:active{transform:scale(0.98)}
+button.theme-toggle{background:transparent;border:1px solid rgba(0,0,0,0.06)}
+
+/* Accent button shimmer */
+.btn-shimmer{position:relative;overflow:hidden}
+.btn-shimmer::after{
+  content:'';position:absolute;left:-120%;top:0;width:40%;height:100%;background:linear-gradient(120deg, rgba(255,255,255,0.12), rgba(255,255,255,0.28), rgba(255,255,255,0.12));transform:skewX(-20deg);transition:all 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+.btn-shimmer:hover::after{left:120%;}
+
+/* Result card */
+#priceDisplay{letter-spacing:-0.02em}
+
+/* Empty state */
+#emptyState{min-height:360px}
+
+/* Dark mode wrapper */
+.dark body{background:var(--bg-dark);color:var(--text-dark)}
+.dark select, .dark input[type=number]{background:rgba(10,10,12,0.6);color:var(--text-dark);border-color:rgba(255,255,255,0.06)}
+
+/* Small utilities */
+.active-scale{transform:scale(0.98)}
+
+/* Accessibility tweaks */
+svg{display:block}
+
+/* Ensure webgl canvas sits behind UI */
+#webgl-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* Tilt effect smoothing */
+.glass-card, .card-floating{transition: transform 0.45s cubic-bezier(0.16,1,0.3,1), box-shadow 0.45s;}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important}
+}
+
+/* Typographic system */
+.ui-title{font-weight:800;font-size:2.5rem;letter-spacing:-0.03em;line-height:1.02;color:var(--text-light)}
+.ui-sub{font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted-light);font-size:0.75rem}
+.ui-label{font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted-light);font-size:0.7rem}
+.ui-price{font-weight:800;font-size:3.5rem;letter-spacing:-0.03em;color:var(--accent-light)}
+.metric-card{background:transparent;padding:0.5rem 0.75rem;border-radius:10px;border:1px solid rgba(0,0,0,0.04);}
+.metric-label{font-size:0.75rem;color:var(--muted-light);text-transform:uppercase;letter-spacing:0.05em}
+.metric-value{font-weight:700;font-size:1.15rem;color:var(--accent-light)}
+.asset-frame{border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;padding:8px}
+.asset-frame img{width:100%;height:120px;object-fit:cover;border-radius:8px}
+
+/* Dark mode overrides */
+.dark .ui-title{color:var(--text-dark)}
+.dark .ui-sub, .dark .ui-label{color:var(--muted-dark)}
+.dark .ui-price, .dark .metric-value{color:var(--accent-dark)}
+.dark .metric-card{border:1px solid rgba(255,255,255,0.04)}
+.dark .asset-frame{background:rgba(255,255,255,0.02)}

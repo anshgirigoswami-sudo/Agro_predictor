@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Analytics — AgroIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header class="nav glass">
+      <div class="nav-inner">
+        <a class="brand" href="/">Agro<span class="brand-accent">IQ</span></a>
+        <nav class="nav-links">
+          <a href="/predict_ui">Predict</a>
+          <a href="/dashboard">Analytics</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="dashboard container">
+      <section class="kpis">
+        <div class="kpi-card glass">
+          <div class="kpi-label">Current Onion Price</div>
+          <div class="kpi-value">₹ <span id="kpiOnion">32.4</span></div>
+        </div>
+        <div class="kpi-card glass">
+          <div class="kpi-label">Growth %</div>
+          <div class="kpi-value"><span id="kpiGrowth">+4.3</span>%</div>
+        </div>
+        <div class="kpi-card glass">
+          <div class="kpi-label">Rainfall Impact</div>
+          <div class="kpi-value">High</div>
+        </div>
+      </section>
+
+      <section class="charts-grid">
+        <div class="chart-card">
+          <h4>Recent Prices</h4>
+          <div class="chart-placeholder">Onion: <strong id="chartOnion">32.4</strong> — Tomato: <strong id="chartTomato">28.1</strong></div>
+        </div>
+        <div class="chart-card">
+          <h4>Summary</h4>
+          <div class="chart-placeholder">Growth: <strong id="chartGrowth">+4.3%</strong></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/script.js"></script>
+  </body>
+</html>

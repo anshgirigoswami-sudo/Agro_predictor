@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Predict — AgroIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header class="nav glass">
+      <div class="nav-inner">
+        <a class="brand" href="/">Agro<span class="brand-accent">IQ</span></a>
+        <nav class="nav-links">
+          <a href="/predict_ui">Predict</a>
+          <a href="/dashboard">Analytics</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="predict-page container">
+      <section class="predict-panel glass">
+        <h2>Price Prediction</h2>
+        <p class="muted">Enter commodity-specific inputs to get an AI forecast.</p>
+        <form id="predictionForm" class="predict-form">
+          <div class="form-row">
+            <label>Commodity</label>
+            <select name="commodity">
+              <option>Onion</option>
+              <option>Tomato</option>
+            </select>
+          </div>
+          <div class="form-row two">
+            <div>
+              <label>Temp (°C)</label>
+              <input name="temp_mean" type="number" step="0.1" value="28">
+            </div>
+            <div>
+              <label>Rainfall (mm)</label>
+              <input name="rainfall_mm" type="number" step="0.1" value="2">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Modal price (last 7d avg ₹/kg)</label>
+            <input name="price_lag_7d" type="number" step="0.1" value="32">
+          </div>
+          <button class="btn btn-primary" type="submit">Predict Price</button>
+        </form>
+
+        <div id="result" class="result-container hidden">
+          <div class="result-card">
+            <div class="result-header">
+              <h3 id="resultCommodity">—</h3>
+              <div class="confidence">Confidence: <span id="resultConfidence">—</span>%</div>
+            </div>
+            <div class="price-display">
+              <div class="price-value"><span class="currency">₹</span><div id="resultPrice">--</div><div class="unit">/kg</div></div>
+            </div>
+            <div class="metric-row">
+              <div class="metric">MAE: <span id="resultMAE">—</span></div>
+              <div class="metric">R²: <span id="resultR2">—</span></div>
+            </div>
+            <div id="aiInsights" class="ai-insights muted">AI Insight: <span id="insightText">—</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/script.js"></script>
+  </body>
+</html>
