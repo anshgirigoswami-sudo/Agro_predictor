@@ -2,7 +2,6 @@ import sys
 import os
 import glob
 import threading
-import time
 from typing import Tuple
 from math import sqrt
 import joblib
@@ -10,7 +9,7 @@ import pandas as pd
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, TimeSeriesSplit, RandomizedSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 # Fix for Windows terminal encoding issues
@@ -29,10 +28,24 @@ MODEL_DIR = os.path.join(BASE_DIR, 'models')
 DATA_PATH = r"e:\Price Predictor\master.csv"
 
 # Exact feature set required by the frontend and models
+# Expanded features including engineered ones. When calling /predict, the payload must include
+# these fields (or reasonable defaults) so the model receives the same features it was trained on.
 FEATURES = [
+    # Core weather / market features
     'temp_mean', 'rainfall_mm', 'humidity', 'wind_speed',
-    'price_lag_7d', 'price_lag_30d', 'rainfall_mm_7d_sum',
-    'month', 'day_of_year', 'drought_indicator', 'flood_indicator'
+    'temp_min', 'temp_max', 'temp_range',
+    # Recent price history (keep only the most informative lags)
+    'price_lag_1d', 'price_lag_7d',
+    # Rolling / momentum stats
+    'rolling_mean_7d', 'rolling_std_7d', 'price_momentum_7d',
+    # Aggregated rainfall
+    'rainfall_7d_avg',
+    # Date / cyclic features
+    'month', 'day_of_year', 'week_sin', 'week_cos',
+    # Domain heuristics
+    'festival_indicator', 'harvest_season_indicator',
+    # Supply indicator
+    'arrival_qty'
 ]
 
 # In-memory model store and training flags
@@ -53,10 +66,94 @@ class DataHandler:
                 df = pd.read_csv(fallback)
             else:
                 raise FileNotFoundError(f"Dataset not found at {path} and fallback {fallback} missing")
+        # Normalize date column name if present
+        if 'date' in df.columns and 'Date' not in df.columns:
+            df = df.rename(columns={'date': 'Date'})
 
-        # Fill forward/backward to handle missing values as requested
-        df = df.ffill().bfill()
-        return df
+        # Restrict dataset to only Tomato and Onion (case-insensitive)
+        if 'Commodity' not in df.columns:
+            raise ValueError("Dataset missing 'Commodity' column")
+        df['Commodity'] = df['Commodity'].astype(str).str.strip()
+        df = df[df['Commodity'].str.lower().isin(['onion', 'tomato'])].copy()
+
+        # Keep only identifiers + model FEATURES + target/date
+        id_cols = ['STATE', 'district', 'Market Name', 'Commodity', 'Variety', 'Grade']
+        target_cols = ['Date', 'Modal_Price']
+        keep_cols = id_cols + target_cols + FEATURES
+
+        # Ensure columns exist; add missing as NaN
+        for c in keep_cols:
+            if c not in df.columns:
+                df[c] = np.nan
+
+        return df[keep_cols]
+
+
+
+def feature_engineer(df: pd.DataFrame, group_col: str = None, crop: str = None) -> pd.DataFrame:
+    """Add engineered time-series features per group (market) or per commodity if group_col is None.
+    All rolling/lag operations are shifted to avoid future leakage.
+    """
+    df = df.copy()
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'])
+        df = df.sort_values(['Commodity', 'Date'] if 'Commodity' in df.columns else ['Date'])
+        df['month'] = df['Date'].dt.month
+        try:
+            df['week_of_year'] = df['Date'].dt.isocalendar().week
+        except Exception:
+            df['week_of_year'] = df['Date'].dt.week
+        df['day_of_year'] = df['Date'].dt.dayofyear
+    else:
+        df['month'] = np.nan
+        df['week_of_year'] = np.nan
+        df['day_of_year'] = np.nan
+
+    grp = group_col if group_col in df.columns else 'Commodity'
+    grouped = df.groupby(grp)
+
+    # Price lags (keep only 1d and 7d to reduce feature count)
+    df['price_lag_1d'] = grouped['Modal_Price'].shift(1)
+    df['price_lag_7d'] = grouped['Modal_Price'].shift(7)
+
+    # Rolling stats (shifted to avoid leakage)
+    df['rolling_mean_7d'] = grouped['Modal_Price'].rolling(7, min_periods=1).mean().shift(1).reset_index(level=0, drop=True)
+    df['rolling_std_7d'] = grouped['Modal_Price'].rolling(7, min_periods=1).std().shift(1).reset_index(level=0, drop=True)
+
+    # Momentum
+    df['price_momentum_7d'] = grouped['Modal_Price'].pct_change(periods=7).shift(1)
+
+    # Derived weather
+    if 'temp_max' in df.columns and 'temp_min' in df.columns:
+        df['temp_range'] = pd.to_numeric(df['temp_max'], errors='coerce') - pd.to_numeric(df['temp_min'], errors='coerce')
+    else:
+        df['temp_range'] = np.nan
+
+    if 'rainfall_mm' in df.columns:
+        df['rainfall_7d_avg'] = grouped['rainfall_mm'].rolling(7, min_periods=1).mean().shift(1).reset_index(level=0, drop=True)
+    else:
+        df['rainfall_7d_avg'] = np.nan
+
+    # Week cyclical transforms
+    df['week_sin'] = np.sin(2 * np.pi * df['week_of_year'] / 52)
+    df['week_cos'] = np.cos(2 * np.pi * df['week_of_year'] / 52)
+
+    # Festival and harvest heuristics
+    df['festival_indicator'] = df['month'].isin({10, 11, 12}).astype(int)
+    if crop:
+        hmap = {'onion': {3,4,5,6}, 'tomato': {8,9,10}}
+        df['harvest_season_indicator'] = df['month'].isin(hmap.get(crop.lower(), set())).astype(int)
+    else:
+        df['harvest_season_indicator'] = 0
+
+    # arrival quantity (if present)
+    arrival_cols = [c for c in df.columns if c.lower() in ('arrival', 'arrival_qty', 'arrival_quantity', 'total_arrival')]
+    if arrival_cols:
+        df['arrival_qty'] = pd.to_numeric(df[arrival_cols[0]], errors='coerce')
+    else:
+        df['arrival_qty'] = np.nan
+
+    return df
 
 
 class ModelTrainer:
@@ -68,18 +165,63 @@ class ModelTrainer:
         if crop_df.empty or 'Modal_Price' not in crop_df.columns:
             raise ValueError(f"No data for crop {crop} or 'Modal_Price' missing")
 
-        # Ensure all feature columns exist
+        # Feature engineering (per market to avoid leakage)
+        group_col = 'Market Name' if 'Market Name' in crop_df.columns else 'Commodity'
+        crop_df = feature_engineer(crop_df, group_col=group_col, crop=crop)
+
+        # Build final feature matrix using the trainer's feature list plus newly engineered features
         for f in self.features:
             if f not in crop_df.columns:
-                crop_df[f] = 0
+                crop_df[f] = np.nan
 
-        X = crop_df[self.features].apply(pd.to_numeric, errors='coerce').fillna(0)
-        y = crop_df['Modal_Price'].astype(float)
+        # Also ensure engineered features exist (match trimmed FEATURES)
+        engineered = ['price_lag_1d', 'price_lag_7d', 'rolling_mean_7d', 'rolling_std_7d', 'price_momentum_7d',
+                  'week_sin', 'week_cos', 'festival_indicator', 'harvest_season_indicator',
+                  'temp_range', 'rainfall_7d_avg', 'arrival_qty']
+        for f in engineered:
+            if f not in crop_df.columns:
+                crop_df[f] = np.nan
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        feature_cols = list(dict.fromkeys(self.features + engineered))
+        X_all = crop_df[feature_cols].apply(pd.to_numeric, errors='coerce')
+        y_all = crop_df['Modal_Price'].astype(float)
 
-        model = RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
-        model.fit(X_train, y_train)
+        # Drop rows with NA in primary lag features (require 1d and 7d lags)
+        if 'price_lag_1d' in X_all.columns and 'price_lag_7d' in X_all.columns:
+            mask = X_all[['price_lag_1d', 'price_lag_7d']].notna().all(axis=1)
+            X_all = X_all[mask]
+            y_all = y_all[mask]
+
+        if len(X_all) < 50:
+            # fallback to simpler model if too little data
+            X_train, X_test, y_train, y_test = train_test_split(X_all.fillna(0), y_all, test_size=0.2, shuffle=False)
+            model = RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
+            model.fit(X_train, y_train)
+        else:
+            # Time-series aware split: use first 80% for train, last 20% for test
+            split = int(len(X_all) * 0.8)
+            X_train, X_test = X_all.iloc[:split], X_all.iloc[split:]
+            y_train, y_test = y_all.iloc[:split], y_all.iloc[split:]
+
+            # Optimized: Reduced hyperparameter search for faster training
+            # Reduced n_iter from 10 to 5, cv splits from 4 to 2, and parameter space
+            tscv = TimeSeriesSplit(n_splits=2)
+            base = RandomForestRegressor(random_state=42, n_jobs=-1, warm_start=False)
+            param_dist = {
+                'n_estimators': [100, 200],  # Removed 400
+                'max_depth': [8, 12],  # Reduced options
+                'min_samples_split': [5, 10],  # Removed 2
+                'min_samples_leaf': [2, 4],  # Removed 1
+                'max_features': ['sqrt', 'log2']  # Removed 0.3 and None
+            }
+            rs = RandomizedSearchCV(base, param_distributions=param_dist, n_iter=5, cv=tscv, 
+                                   scoring='neg_mean_squared_error', n_jobs=-1, random_state=42, 
+                                   verbose=0, error_score='raise')
+            rs.fit(X_train, y_train)
+            best = rs.best_estimator_
+            # Fit best on training data
+            best.fit(X_train, y_train)
+            model = best
 
         preds = model.predict(X_test)
         mae = float(mean_absolute_error(y_test, preds))
@@ -88,38 +230,161 @@ class ModelTrainer:
         return model, mae, rmse
 
 
+class FeatureAutoFiller:
+    """Intelligently fills missing features using historical dataset statistics."""
+    def __init__(self, df: pd.DataFrame):
+        self.df = df.copy()
+        self.feature_stats = {}
+        self.compute_stats()
+    
+    def compute_stats(self):
+        """Pre-compute feature statistics per commodity."""
+        for crop in ['onion', 'tomato']:
+            crop_df = self.df[self.df['Commodity'].astype(str).str.strip().str.lower() == crop]
+            if crop_df.empty:
+                self.feature_stats[crop] = {}
+                continue
+            stats = {}
+            for col in FEATURES:
+                if col in crop_df.columns:
+                    numeric = pd.to_numeric(crop_df[col], errors='coerce')
+                    stats[col] = {
+                        'mean': numeric.mean(),
+                        'median': numeric.median(),
+                        'std': numeric.std()
+                    }
+                else:
+                    stats[col] = {'mean': 0, 'median': 0, 'std': 0}
+            self.feature_stats[crop] = stats
+    
+    def fill_features(self, commodity: str, partial_data: dict) -> dict:
+        """Fill missing features with intelligent defaults."""
+        crop = commodity.lower()
+        stats = self.feature_stats.get(crop, {})
+        filled = partial_data.copy()
+        
+        # If no date provided, use today
+        if 'date' not in filled:
+            now = pd.Timestamp.now()
+            filled['month'] = int(now.month)
+            filled['day_of_year'] = int(now.dayofyear)
+            filled['week_of_year'] = int(now.isocalendar().week)
+        
+        # Cyclic encoding for week
+        week = filled.get('week_of_year', 26)
+        if 'week_sin' not in filled:
+            filled['week_sin'] = float(np.sin(2 * np.pi * week / 52))
+        if 'week_cos' not in filled:
+            filled['week_cos'] = float(np.cos(2 * np.pi * week / 52))
+        
+        # Festival and harvest indicators
+        month = filled.get('month', 1)
+        if 'festival_indicator' not in filled:
+            filled['festival_indicator'] = 1 if month in (10, 11, 12) else 0
+        if 'harvest_season_indicator' not in filled:
+            hmap = {'onion': {3, 4, 5, 6}, 'tomato': {8, 9, 10}}
+            filled['harvest_season_indicator'] = 1 if month in hmap.get(crop, set()) else 0
+
+        # Derive temperature range when possible so the model receives the same schema it was trained on
+        if 'temp_range' not in filled:
+            if 'temp_max' in filled and 'temp_min' in filled:
+                try:
+                    filled['temp_range'] = float(filled['temp_max']) - float(filled['temp_min'])
+                except Exception:
+                    filled['temp_range'] = 6.0
+            elif 'temp_mean' in filled:
+                filled['temp_min'] = float(filled.get('temp_min', float(filled['temp_mean']) - 3))
+                filled['temp_max'] = float(filled.get('temp_max', float(filled['temp_mean']) + 3))
+                filled['temp_range'] = float(filled['temp_max']) - float(filled['temp_min'])
+            else:
+                filled['temp_range'] = 6.0
+        
+        # Fill all other missing features with historical medians
+        for feature in FEATURES:
+            if feature not in filled or filled[feature] is None or filled[feature] == '':
+                default_val = stats.get(feature, {}).get('median', 0)
+                filled[feature] = float(default_val) if pd.notna(default_val) else 0.0
+        
+        return filled
+
+
 class Predictor:
-    def __init__(self, models_map, metrics_map, features):
+    def __init__(self, models_map, metrics_map, features, feature_filler=None):
         self.models = models_map
         self.metrics = metrics_map
         self.features = features
+        self.filler = feature_filler
 
     def validate_input(self, payload: dict) -> Tuple[str, np.ndarray]:
-        commodity = payload.get('commodity')
-        if not commodity or not isinstance(commodity, str):
-            raise ValueError('commodity field is required and must be a string')
+        """Accept minimal input: only commodity, price_lag_7d, and temp_mean required."""
+        commodity_raw = payload.get('commodity', '').strip()
+        commodity = commodity_raw.title()
+        if not commodity_raw or commodity.lower() not in ['onion', 'tomato']:
+            raise ValueError('commodity must be "onion" or "tomato"')
 
-        # Accept either 'values' array or named fields
-        values = payload.get('values')
-        if values is not None:
-            if not isinstance(values, (list, tuple)) or len(values) != len(self.features):
-                raise ValueError(f"'values' must be an array of length {len(self.features)}")
-            arr = np.array([float(v) for v in values], dtype=float).reshape(1, -1)
+        # Core inputs: price from 7 days ago and current temperature
+        price_lag_7d = payload.get('price_lag_7d')
+        temp_mean = payload.get('temp_mean')
+        
+        if price_lag_7d is None or price_lag_7d == '':
+            raise ValueError('price_lag_7d is required (price 7 days ago)')
+        if temp_mean is None or temp_mean == '':
+            raise ValueError('temp_mean is required (current temperature)')
+        
+        try:
+            price_lag_7d = float(price_lag_7d)
+            temp_mean = float(temp_mean)
+        except ValueError:
+            raise ValueError('price_lag_7d and temp_mean must be numbers')
+        
+        # Build minimal data dict
+        data = {
+            'commodity': commodity,
+            'price_lag_7d': price_lag_7d,
+            'temp_mean': temp_mean,
+        }
+        
+        # Use auto-filler to intelligently fill remaining features
+        if self.filler:
+            data = self.filler.fill_features(commodity, data)
         else:
-            arr = []
-            for f in self.features:
-                v = payload.get(f, 0)
-                arr.append(float(v))
-            arr = np.array([arr], dtype=float)
-
+            # Fallback: basic filling without filler
+            now = pd.Timestamp.now()
+            week = int(now.isocalendar().week)
+            month = int(now.month)
+            data.update({
+                'month': month,
+                'day_of_year': int(now.dayofyear),
+                'week_of_year': week,
+                'week_sin': float(np.sin(2 * np.pi * week / 52)),
+                'week_cos': float(np.cos(2 * np.pi * week / 52)),
+                'festival_indicator': 1 if month in (10, 11, 12) else 0,
+                'harvest_season_indicator': 1 if month in ({3,4,5,6} if commodity.lower()=='onion' else {8,9,10}) else 0,
+                'price_lag_1d': price_lag_7d,  # Use 7d as proxy for 1d
+                'rolling_mean_7d': price_lag_7d,
+                'rolling_std_7d': 0.0,
+                'price_momentum_7d': 0.0,
+                'rainfall_mm': 0.0,
+                'humidity': 60.0,
+                'wind_speed': 5.0,
+                'temp_min': temp_mean - 3,
+                'temp_max': temp_mean + 3,
+                'temp_range': 6.0,
+                'rainfall_7d_avg': 0.0,
+                'arrival_qty': 100.0,
+            })
+        
+        # Build feature array in correct order
+        arr = np.array([[float(data.get(f, 0)) for f in self.features]], dtype=float)
         return commodity, arr
 
     def predict(self, commodity: str, X: np.ndarray):
-        model = self.models.get(commodity)
+        commodity_key = commodity.strip().title()
+        model = self.models.get(commodity_key)
         if model is None:
-            raise ValueError(f"Model for '{commodity}' not trained yet")
+            raise ValueError(f"Model for '{commodity_key.lower()}' is still training. Please wait a moment and try again.")
         pred = float(model.predict(X)[0])
-        m = self.metrics.get(commodity, {})
+        m = self.metrics.get(commodity_key, {})
         return {'price': round(pred, 2), 'mae': m.get('mae'), 'rmse': m.get('rmse')}
 
 
@@ -204,6 +469,11 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/predict_ui')
+def predict_ui():
+    return render_template('predict.html')
+
+
 @app.route('/status', methods=['GET'])
 def status():
     return jsonify({'training': is_training, 'models': {k: ('ready' if k in models else 'missing') for k in ['Onion', 'Tomato']}})
@@ -213,45 +483,51 @@ def status():
 def predict():
     try:
         payload = request.get_json(force=True)
-        predictor = Predictor(models, metrics, FEATURES)
+        
+        # Initialize feature filler with current dataset if available
+        filler = None
+        try:
+            df = DataHandler.load(DATA_PATH)
+            filler = FeatureAutoFiller(df)
+        except:
+            pass
+        
+        predictor = Predictor(models, metrics, FEATURES, feature_filler=filler)
         commodity, X = predictor.validate_input(payload)
         result = predictor.predict(commodity, X)
-        # Build a 7-day synthetic forecast centered on the predicted value
-        # The model and dataset use price per quintal; expose both quintal and kg prices
-        base_quintal = result['price']
-        price_per_kg = round(base_quintal / 100.0, 2)
-        forecast_quintal = []
-        forecast_kg = []
+        
+        # Calculate confidence (0-100)
+        mae = result.get('mae')
+        rmse = result.get('rmse')
+        # Normalize: lower error = higher confidence
+        # Assume MAE of 100 = 50% confidence, MAE of 50 = 75% confidence
+        if mae:
+            confidence = max(10, min(95, 100 - (mae / 2)))
+        else:
+            confidence = 75
+        
+        # Determine trend based on momentum
+        price_7d_ago = float(payload.get('price_lag_7d', 0))
+        predicted = result['price']
+        trend = 'up' if predicted > price_7d_ago else ('down' if predicted < price_7d_ago else 'stable')
+        change_pct = round(((predicted - price_7d_ago) / price_7d_ago * 100), 1) if price_7d_ago else 0
+        
+        # Generate simple 7-day forecast
+        forecast = []
         for i in range(7):
-            jitter = (np.sin(i / 2.0) * 0.01 + (np.random.randn() * 0.005))
-            fq = round(base_quintal * (1 + jitter), 2)
-            fk = round(fq / 100.0, 2)
-            forecast_quintal.append(fq)
-            forecast_kg.append(fk)
-
-        # Attempt to provide feature importance (drivers)
-        drivers = {}
-        try:
-            model = models.get(commodity)
-            if hasattr(model, 'feature_importances_'):
-                fi = model.feature_importances_
-                drivers = {f: float(round(float(w), 4)) for f, w in zip(FEATURES, fi)}
-        except Exception:
-            drivers = {}
-
-        # Choose asset image based on commodity
-        image_map = {'Onion': '/static/images/onion.svg', 'Tomato': '/static/images/tomato.svg'}
-
+            jitter = (i - 3) * 0.01 * predicted  # Slight variation
+            forecast.append(round(predicted * (1 + jitter), 2))
+        
         return jsonify({
             'status': 'Success',
-            'price_per_quintal': base_quintal,
-            'price_per_kg': price_per_kg,
-            'mae': result['mae'],
-            'rmse': result['rmse'],
-            'forecast_quintal': forecast_quintal,
-            'forecast_kg': forecast_kg,
-            'drivers': drivers,
-            'image': image_map.get(commodity, '')
+            'price': round(predicted, 2),
+            'price_per_kg': round(predicted / 100.0, 2),
+            'price_per_quintal': round(predicted, 2),
+            'trend': trend,
+            'change_pct': change_pct,
+            'confidence': round(confidence, 1),
+            'forecast': forecast,  # 7-day forecast
+            'mae': round(mae, 2) if mae else None,
         })
     except ValueError as ve:
         return jsonify({'status': 'Error', 'message': str(ve)}), 400
@@ -353,8 +629,8 @@ def dataset_preview():
         path = DATA_PATH if os.path.exists(DATA_PATH) else os.path.join(BASE_DIR, 'master.csv')
         if not os.path.exists(path):
             return jsonify({'error': 'dataset not found'}), 404
-        # read only N rows to avoid huge memory usage
-        df = pd.read_csv(path, nrows=n)
+        # use DataHandler.load which filters to Onion and Tomato
+        df = DataHandler.load(path)
         cols = list(df.columns)
         rows = df.fillna('').head(n).to_dict(orient='records')
         return jsonify({'columns': cols, 'rows': rows})
@@ -363,23 +639,59 @@ def dataset_preview():
 
 
 if __name__ == '__main__':
-    # Load any persisted models so /predict can work immediately
-    try:
-        load_persisted_models()
-    except Exception as e:
-        print('Loading persisted models failed:', e)
+    # First try to load persisted models to avoid retraining
+    print('=' * 60)
+    print('Loading persisted models...')
+    load_persisted_models()
+    print(f'Models loaded: {list(models.keys())}')
+    print('=' * 60)
     
-    # Gate background training via environment variable (default: disabled on Render free tier; set ENABLE_BACKGROUND_TRAIN=1 for local dev)
-    enable_bg_training = os.getenv('ENABLE_BACKGROUND_TRAIN', '0') == '1'
-    if enable_bg_training:
-        t = threading.Thread(target=background_train, daemon=True)
-        t.start()
-        print('Background training enabled.')
+    # Only train if models are missing
+    if 'Onion' not in models or 'Tomato' not in models:
+        print('⚠️  Missing models detected. Training on startup...')
+        print('=' * 60)
+        try:
+            print('Loading dataset...')
+            df = DataHandler.load(DATA_PATH)
+            print(f'Dataset loaded: {len(df)} rows, columns: {list(df.columns)[:5]}...')
+            
+            trainer = ModelTrainer(FEATURES)
+            for crop in ['Onion', 'Tomato']:
+                if crop in models:
+                    print(f'✅ Skipping {crop} (already loaded)')
+                    continue
+                try:
+                    print(f'\n🔄 Training model for {crop}...')
+                    model, mae, rmse = trainer.train_for(crop, df)
+                    models[crop] = model
+                    metrics[crop] = {'mae': round(mae, 3), 'rmse': round(rmse, 3)}
+                    print(f"✅ Trained {crop}: MAE={mae:.3f}, RMSE={rmse:.3f}")
+                    
+                    # Persist trained model
+                    model_path = os.path.join(MODEL_DIR, f'{crop.lower()}_model.joblib')
+                    joblib.dump(model, model_path)
+                    print(f"💾 Saved {crop} model to {model_path}")
+                except Exception as e:
+                    print(f'❌ Failed training for {crop}: {str(e)}')
+                    import traceback
+                    traceback.print_exc()
+        except Exception as e:
+            print(f'❌ Training failed: {str(e)}')
+            import traceback
+            traceback.print_exc()
+        print('=' * 60)
     else:
-        print('Background training disabled (set ENABLE_BACKGROUND_TRAIN=1 to enable).')
-    
+        print('✅ All models loaded successfully')
+        print('=' * 60)
+
+    # Check final status
+    print('\n📊 FINAL STATUS:')
+    print(f'  Onion model: {"✅ Ready" if "Onion" in models else "❌ Missing"}')
+    print(f'  Tomato model: {"✅ Ready" if "Tomato" in models else "❌ Missing"}')
+    print('=' * 60)
+
     port = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_DEBUG', 'False') == 'True'
-    
-    print(f'Starting web server on http://0.0.0.0:{port}')
+
+    print(f'\n🚀 Starting web server on http://0.0.0.0:{port}')
     app.run(host='0.0.0.0', port=port, debug=debug_mode)

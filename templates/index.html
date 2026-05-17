@@ -1,189 +1,1669 @@
-<!doctype html>
-<html lang="en" class="antialiased">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Agri-Price Predictor — Dashboard</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>AgriPredict AI</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --bg-2: #e9ecf1;
+      --surface: rgba(255, 255, 255, 0.72);
+      --surface-strong: rgba(255, 255, 255, 0.88);
+      --text: #0a0f1c;
+      --muted: rgba(10, 15, 28, 0.66);
+      --line: rgba(10, 15, 28, 0.08);
+      --shadow: 0 24px 80px rgba(10, 15, 28, 0.12);
+      --glow: rgba(99, 102, 241, 0.16);
+      --accent: #5b7cfa;
+      --accent-2: #57d6c9;
+      --accent-3: #d8a8ff;
+      --success: #17c964;
+      --warning: #f5a524;
+      --radius-xl: 34px;
+      --radius-lg: 26px;
+      --radius-md: 18px;
+      --container: 1240px;
+    }
 
-    <!-- Tailwind via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Three.js for immersive ambience -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.156.0/examples/js/controls/OrbitControls.min.js"></script>
+    html[data-theme="dark"] {
+      --bg: #07080c;
+      --bg-2: #11131a;
+      --surface: rgba(10, 12, 18, 0.62);
+      --surface-strong: rgba(14, 16, 24, 0.82);
+      --text: #f5f7fb;
+      --muted: rgba(245, 247, 251, 0.67);
+      --line: rgba(255, 255, 255, 0.08);
+      --shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+      --glow: rgba(91, 124, 250, 0.24);
+      --accent: #7b8cff;
+      --accent-2: #5eead4;
+      --accent-3: #c084fc;
+    }
 
-    <link rel="stylesheet" href="/static/css/apple_ui.css" />
-    <style>
-      :root { --apple-border: #e5e5e7; }
-    </style>
-  </head>
-  <body class="bg-white text-slate-900 font-sans">
-    <!-- Fullscreen WebGL background canvas (three.js) -->
-    <canvas id="webgl-canvas" style="position:fixed;inset:0;z-index:0;pointer-events:none;display:block;" aria-hidden="true"></canvas>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 28%),
+        radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--accent-3) 12%, transparent) 0%, transparent 22%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      overflow-x: hidden;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
 
-    <!-- Perspective container provides 3D context for UI cards -->
-    <div id="ui-perspective" style="perspective:1000px;position:relative;z-index:1;" class="min-h-screen">
-      <div class="min-h-screen flex">
-      <!-- Sidebar -->
-      <aside class="w-96 p-6 border-r glass-card" style="border-color:var(--apple-border)">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h1 class="ui-title">Agri‑Price Predictor</h1>
-            <p class="ui-sub">Predict market price with confidence.</p>
-          </div>
-          <div class="ml-4">
-            <div class="flex gap-2">
-              <button id="themeToggle" class="theme-toggle bg-gray-100 p-2 rounded-full hover:scale-98 active:scale-98"> </button>
-              <button id="ambienceToggle" class="theme-toggle bg-gray-100 p-2 rounded-full hover:scale-98 active:scale-98">💫</button>
-            </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v2" stroke="#111827" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 24%),
+        radial-gradient(circle at 80% 25%, rgba(255,255,255,0.05), transparent 22%),
+        radial-gradient(circle at 50% 80%, rgba(255,255,255,0.06), transparent 20%);
+      mix-blend-mode: screen;
+      opacity: 0.5;
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 120px 120px;
+      mask-image: radial-gradient(circle at center, black 20%, transparent 85%);
+      opacity: 0.42;
+      z-index: 0;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+
+    .app {
+      position: relative;
+      z-index: 1;
+    }
+
+    .container {
+      width: min(var(--container), calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(28px);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), transparent 28%),
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, white 8%), color-mix(in srgb, var(--accent-3) 84%, white 16%));
+      box-shadow: 0 16px 32px color-mix(in srgb, var(--accent) 28%, transparent);
+      position: relative;
+      overflow: hidden;
+      animation: brandFloat 5.5s ease-in-out infinite;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.3);
+      opacity: 0.55;
+    }
+
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+      align-items: flex-start;
+    }
+
+    .brand-copy strong {
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+
+    .brand-copy span {
+      margin-top: 4px;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-link, .theme-toggle {
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--text);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+      transition: transform 220ms ease, background 220ms ease, border-color 220ms ease;
+    }
+
+    .ghost-link:hover, .theme-toggle:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+    }
+
+    .theme-toggle {
+      width: 44px;
+      padding: 0;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .theme-toggle span {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      transition: transform 360ms ease, opacity 360ms ease;
+      font-size: 1rem;
+    }
+
+    html[data-theme="dark"] .theme-toggle .sun,
+    html:not([data-theme="dark"]) .theme-toggle .moon { transform: translateY(18px); opacity: 0; }
+
+    .hero {
+      min-height: calc(100vh - 78px);
+      display: grid;
+      align-items: center;
+      padding: 44px 0 28px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 42px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: blur(18px);
+      color: var(--muted);
+      box-shadow: var(--shadow);
+      transform: translateY(10px);
+      animation: floatChip 4.5s ease-in-out infinite;
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, white, var(--accent));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent);
+    }
+
+    .hero h1 {
+      margin: 22px 0 0;
+      font-size: clamp(3.25rem, 10vw, 7.8rem);
+      line-height: 0.92;
+      letter-spacing: -0.075em;
+      max-width: 12ch;
+      animation: textGlow 7s ease-in-out infinite;
+    }
+
+    .hero h1 .sub {
+      display: block;
+      margin-top: 12px;
+      color: color-mix(in srgb, var(--muted) 80%, white 20%);
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      letter-spacing: -0.03em;
+      line-height: 1.35;
+      max-width: 34ch;
+      font-weight: 500;
+    }
+
+    .hero-copy {
+      margin-top: 18px;
+      max-width: 58ch;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.4vw, 1.1rem);
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      margin-top: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      align-content: center;
+    }
+
+    .primary-btn, .secondary-btn {
+      position: relative;
+      isolation: isolate;
+      border: 0;
+      height: 54px;
+      border-radius: 999px;
+      padding: 0 22px;
+      cursor: pointer;
+      transition: transform 220ms ease, box-shadow 220ms ease, opacity 220ms ease;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .primary-btn {
+      color: white;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, black 8%), color-mix(in srgb, var(--accent-3) 72%, black 28%));
+      box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+
+    .secondary-btn {
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(18px);
+    }
+
+    .primary-btn::before, .secondary-btn::before, .theme-switch::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.38) 18%, transparent 40%);
+      transform: translateX(-120%) skewX(-18deg);
+      transition: transform 900ms ease;
+      z-index: -1;
+    }
+
+    .primary-btn:hover, .secondary-btn:hover, .theme-switch:hover { transform: translateY(-2px); }
+    .primary-btn:hover::before, .secondary-btn:hover::before, .theme-switch:hover::before { transform: translateX(120%) skewX(-18deg); }
+
+    .hero-meta {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      max-width: 620px;
+    }
+
+    .meta-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: color-mix(in srgb, var(--surface) 90%, transparent);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: left;
+      animation: riseSoft 6s ease-in-out infinite;
+    }
+
+    .meta-card:nth-child(2) { animation-delay: 0.9s; }
+    .meta-card:nth-child(3) { animation-delay: 1.8s; }
+
+    .meta-card strong {
+      display: block;
+      font-size: 1.35rem;
+      letter-spacing: -0.05em;
+      margin-top: 28px;
+      line-height: 1;
+    }
+
+    .meta-card span {
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .hero-visual {
+      position: relative;
+      min-height: 680px;
+      display: grid;
+      place-items: center;
+      perspective: 1400px;
+      transform-style: preserve-3d;
+      animation: sway 9s ease-in-out infinite;
+    }
+
+    .orb-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      transform-style: preserve-3d;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(0);
+      transform-style: preserve-3d;
+    }
+
+    .orb.one {
+      width: 220px;
+      height: 220px;
+      top: 18%;
+      left: 12%;
+      background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.85), rgba(255,255,255,0.06) 36%, transparent 58%), radial-gradient(circle at 70% 70%, rgba(91,124,250,0.56), transparent 60%);
+      opacity: 0.85;
+      filter: blur(2px);
+      animation: drift 15s ease-in-out infinite;
+    }
+
+    .orb.two {
+      width: 140px;
+      height: 140px;
+      right: 10%;
+      top: 12%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.92), rgba(255,255,255,0.08) 40%, transparent 68%), radial-gradient(circle at 72% 72%, rgba(87,214,201,0.7), transparent 62%);
+      opacity: 0.7;
+      animation: drift 18s ease-in-out infinite reverse;
+    }
+
+    .orb.three {
+      width: 320px;
+      height: 320px;
+      bottom: 6%;
+      left: 8%;
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.36), rgba(255,255,255,0.04) 35%, transparent 60%), radial-gradient(circle at 68% 68%, rgba(216,168,255,0.36), transparent 64%);
+      opacity: 0.45;
+      filter: blur(10px);
+      animation: drift 20s ease-in-out infinite;
+    }
+
+    .ai-core {
+      position: relative;
+      width: min(100%, 480px);
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      transform: none;
+      animation: floatCore 7s ease-in-out infinite;
+    }
+
+    .ai-shell {
+      position: absolute;
+      inset: 8%;
+      border-radius: 38% 62% 60% 40% / 42% 44% 56% 58%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.16) 16%, transparent 40%),
+        radial-gradient(circle at 70% 75%, color-mix(in srgb, var(--accent) 80%, white 20%), transparent 55%),
+        linear-gradient(145deg, color-mix(in srgb, var(--surface) 86%, transparent), color-mix(in srgb, var(--surface-strong) 74%, transparent));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.44),
+        inset 0 -26px 70px rgba(255,255,255,0.04),
+        0 24px 80px rgba(0,0,0,0.24),
+        0 0 0 1px var(--line);
+      backdrop-filter: blur(26px);
+      overflow: hidden;
+      animation: breathe 6s ease-in-out infinite;
+    }
+
+    .ai-shell::before {
+      content: "";
+      position: absolute;
+      inset: -10%;
+      background:
+        linear-gradient(115deg, transparent 24%, rgba(255,255,255,0.28) 45%, transparent 56%),
+        radial-gradient(circle at 50% 50%, transparent 46%, rgba(255,255,255,0.1) 72%, transparent 74%);
+      opacity: 0.9;
+      animation: scan 6s linear infinite;
+    }
+
+    .ai-shell::after {
+      content: "";
+      position: absolute;
+      inset: 18%;
+      border-radius: 42%;
+      border: 1px solid rgba(255,255,255,0.25);
+      box-shadow: inset 0 0 30px rgba(255,255,255,0.08);
+    }
+
+    .ai-face {
+      position: relative;
+      width: 56%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(255,255,255,0.8), rgba(255,255,255,0.08) 18%, transparent 36%),
+        radial-gradient(circle at 35% 35%, rgba(91,124,250,0.8), transparent 22%),
+        radial-gradient(circle at 65% 65%, rgba(94,234,212,0.7), transparent 26%);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.18),
+        0 0 70px color-mix(in srgb, var(--accent) 38%, transparent),
+        inset 0 0 40px rgba(255,255,255,0.06);
+      overflow: hidden;
+      animation: faceFloat 4.8s ease-in-out infinite;
+    }
+
+    .ai-face::before,
+    .ai-face::after {
+      content: "";
+      position: absolute;
+      top: 42%;
+      width: 16%;
+      height: 16%;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--text) 80%, white 20%);
+      box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 42%, transparent);
+      opacity: 0.9;
+    }
+
+    .ai-face::before { left: 27%; }
+    .ai-face::after { right: 27%; }
+
+    .ai-mouth {
+      position: absolute;
+      left: 50%;
+      bottom: 28%;
+      width: 26%;
+      height: 4px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.92), transparent);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 44%, transparent);
+      opacity: 0.75;
+      animation: pulseMouth 2.4s ease-in-out infinite;
+    }
+
+    .ai-rings {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 0 40px rgba(91,124,250,0.08), inset 0 0 18px rgba(255,255,255,0.06);
+      animation: spin 18s linear infinite;
+    }
+
+    .ring.r1 { width: 76%; height: 76%; }
+    .ring.r2 { width: 92%; height: 92%; animation-duration: 28s; animation-direction: reverse; }
+    .ring.r3 { width: 108%; height: 108%; opacity: 0.48; animation-duration: 38s; }
+
+    .ai-label {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      min-width: min(86%, 300px);
+      padding: 14px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(18px);
+      text-align: center;
+      color: var(--muted);
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .label-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--success) 60%, transparent);
+    }
+
+    .section {
+      padding: 44px 0;
+    }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .glass-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(24px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+    }
+
+    .glass-card:hover {
+      transform: translateY(-4px);
+      border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.18);
+    }
+
+    .glass-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.16), transparent 40%, rgba(255,255,255,0.08));
+      pointer-events: none;
+      opacity: 0.75;
+    }
+
+    .glass-card-inner {
+      position: relative;
+      padding: 28px;
+    }
+
+    .glass-card-inner > * {
+      animation: contentRise 850ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    .glass-card-inner > *:nth-child(2) { animation-delay: 60ms; }
+    .glass-card-inner > *:nth-child(3) { animation-delay: 120ms; }
+    .glass-card-inner > *:nth-child(4) { animation-delay: 180ms; }
+
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .section-kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-3));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+    }
+
+    .section-copy {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 58ch;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .field {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .input-shell {
+      position: relative;
+    }
+
+    .input-shell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.16), transparent 50%, rgba(255,255,255,0.12));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .input-shell input, .input-shell select {
+      width: 100%;
+      height: 56px;
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--surface-strong) 96%, transparent);
+      color: var(--text);
+      padding: 0 18px;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+
+    .input-shell input::placeholder { color: color-mix(in srgb, var(--muted) 78%, transparent); }
+    .input-shell input:focus, .input-shell select:focus {
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 15%, transparent), inset 0 1px 0 rgba(255,255,255,0.08);
+      transform: translateY(-1px);
+    }
+
+    .predict-btn {
+      width: 100%;
+      height: 60px;
+      border: 0;
+      border-radius: 18px;
+      cursor: pointer;
+      color: white;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 95%, black 5%), color-mix(in srgb, var(--accent-3) 80%, black 20%));
+      box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 30%, transparent);
+      transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .predict-btn span { position: relative; z-index: 1; }
+    .predict-btn .loader {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.28);
+      border-top-color: white;
+      animation: spin 0.9s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    .predict-btn.is-loading .loader { display: inline-block; }
+    .predict-btn.is-loading { opacity: 0.92; cursor: progress; }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .status-chip {
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1;
+    }
+
+    .status-chip strong { color: var(--text); }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--warning);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--warning) 50%, transparent);
+    }
+    .status-chip.ready .status-dot { background: var(--success); box-shadow: 0 0 14px color-mix(in srgb, var(--success) 50%, transparent); }
+
+    .results-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 22px;
+      margin-top: 10px;
+      align-items: stretch;
+    }
+
+    .price-hero {
+      display: grid;
+      gap: 14px;
+      padding-top: 0;
+    }
+
+    .price-value {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .price-main {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .price-value strong {
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      letter-spacing: -0.08em;
+      line-height: 0.95;
+      animation: countGlow 6s ease-in-out infinite;
+    }
+
+    .price-value span {
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .price-unit {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 1rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .price-unit strong {
+      font-size: 1.05rem;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      animation: countGlow 6s ease-in-out infinite;
+    }
+
+    .price-secondary {
+      display: flex;
+      gap: 10px;
+      margin-top: -4px;
+      flex-wrap: wrap;
+    }
+
+    .price-secondary .pill {
+      justify-content: space-between;
+      min-width: 146px;
+      padding: 7px 11px;
+    }
+
+    .insight {
+      padding: 18px 18px 18px 20px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--accent-3) 12%, transparent));
+      border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .mini-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 72px;
+    }
+
+    .stat small {
+      display: block;
+      color: var(--muted);
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .stat strong {
+      font-size: 1.05rem;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .compact-result {
+      position: sticky;
+      top: 92px;
+      z-index: 2;
+    }
+
+    .compact-result .glass-card-inner {
+      padding: 22px;
+    }
+
+    .chart-card {
+      display: grid;
+      gap: 16px;
+      min-height: 100%;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 320px;
+      border-radius: 28px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(255,255,255,0.1), transparent 24%),
+        linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 82%, transparent), color-mix(in srgb, var(--surface) 92%, transparent));
+      border: 1px solid var(--line);
+      animation: chartFloat 7s ease-in-out infinite;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .feature {
+      min-height: 220px;
+      padding: 22px;
+      border-radius: 26px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 90%, transparent);
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      transform-style: preserve-3d;
+      transition: transform 180ms ease, border-color 180ms ease;
+      animation: featureRise 8s ease-in-out infinite;
+    }
+
+    .feature:nth-child(2) { animation-delay: 0.4s; }
+    .feature:nth-child(3) { animation-delay: 0.8s; }
+    .feature:nth-child(4) { animation-delay: 1.2s; }
+
+    .feature::before {
+      content: "";
+      position: absolute;
+      inset: auto -20% -25% auto;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%);
+      filter: blur(4px);
+      opacity: 0.8;
+    }
+
+    .feature:hover {
+      transform: translateY(-4px);
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+    }
+
+    .feature-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent-3) 14%, transparent));
+      border: 1px solid var(--line);
+      margin-bottom: 18px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+      font-size: 1.4rem;
+    }
+
+    .feature h3 {
+      margin: 0 0 10px;
+      font-size: 1.3rem;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .footer {
+      padding: 36px 0 44px;
+      color: var(--muted);
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+
+    .footer strong { color: var(--text); }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      filter: blur(10px);
+      transition: opacity 900ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+
+    .theme-switch {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .theme-switch svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+      transition: transform 400ms ease, opacity 300ms ease;
+    }
+
+    .theme-switch .icon-dark { opacity: 0; transform: rotate(-90deg) scale(0.6); position: absolute; }
+    html[data-theme="dark"] .theme-switch .icon-light { opacity: 0; transform: rotate(90deg) scale(0.6); }
+    html[data-theme="dark"] .theme-switch .icon-dark { opacity: 1; transform: rotate(0deg) scale(1); }
+
+    .hint-line {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      animation: pillPulse 8s ease-in-out infinite;
+    }
+
+    .sparkline {
+      position: absolute;
+      inset: 0;
+      opacity: 0.88;
+      pointer-events: none;
+    }
+
+    .mobile-only { display: none; }
+
+    @media (max-width: 1120px) {
+      .hero-grid, .panel-grid, .results-layout {
+        grid-template-columns: 1fr;
+      }
+      .hero-visual {
+        min-height: 540px;
+      }
+      .features-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .container { width: min(var(--container), calc(100% - 28px)); }
+      .topbar-inner { padding: 12px 0; }
+      .ghost-link { display: none; }
+      .hero { padding-top: 28px; }
+      .hero h1 { max-width: 10ch; }
+      .hero-meta { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .mini-stats { grid-template-columns: 1fr; }
+      .ai-core { width: min(100%, 360px); }
+      .hero-visual { min-height: 420px; }
+      .glass-card-inner { padding: 22px; }
+      .chart-wrap { height: 260px; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+      .mobile-only { display: inline; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      25% { transform: translate3d(14px, -18px, 0) scale(1.03); }
+      50% { transform: translate3d(-12px, 10px, 0) scale(0.98); }
+      75% { transform: translate3d(10px, 16px, 0) scale(1.02); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.025); }
+    }
+
+    @keyframes faceFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-9px); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes scan {
+      0% { transform: translateY(-20%) rotate(12deg); opacity: 0.2; }
+      50% { opacity: 0.72; }
+      100% { transform: translateY(20%) rotate(12deg); opacity: 0.24; }
+    }
+
+    @keyframes pulseMouth {
+      0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.7; }
+      50% { transform: translateX(-50%) scaleX(0.72); opacity: 1; }
+    }
+
+    @keyframes brandFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @keyframes floatChip {
+      0%, 100% { transform: translateY(10px); }
+      50% { transform: translateY(4px); }
+    }
+
+    @keyframes textGlow {
+      0%, 100% { text-shadow: 0 0 0 rgba(0,0,0,0); }
+      50% { text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 16%, transparent); }
+    }
+
+    @keyframes riseSoft {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    @keyframes sway {
+      0%, 100% { transform: translateY(0) rotateY(0deg); }
+      50% { transform: translateY(-6px) rotateY(-3deg); }
+    }
+
+    @keyframes floatCore {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes revealUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(10px); }
+      to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes contentRise {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes chartFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    @keyframes featureRise {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    @keyframes countGlow {
+      0%, 100% { filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+      50% { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent) 20%, transparent)); }
+    }
+
+    @keyframes pillPulse {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="#top" aria-label="AgriPredict AI home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-copy">
+            <strong>AgriPredict AI</strong>
+            <span>Apple-level crop intelligence</span>
+          </span>
+        </a>
+
+        <div class="nav-actions">
+          <a class="ghost-link" href="#predict">Predict</a>
+          <a class="ghost-link" href="#features">Features</a>
+          <button class="theme-switch" id="themeSwitch" type="button" aria-label="Toggle theme">
+            <svg class="icon-light" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm0 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a1 1 0 1 1 0 2h-2a1 1 0 1 1 0-2h2ZM6 13a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2h2Zm11.657-7.657a1 1 0 0 1 1.414 0l1.414 1.414a1 1 0 0 1-1.414 1.414l-1.414-1.414a1 1 0 0 1 0-1.414ZM4.515 17.485a1 1 0 0 1 1.414 0l1.414 1.414a1 1 0 1 1-1.414 1.414l-1.414-1.414a1 1 0 0 1 0-1.414ZM12 19a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1ZM5.929 5.929a1 1 0 0 1 0 1.414L4.515 8.757A1 1 0 1 1 3.1 7.343l1.414-1.414a1 1 0 0 1 1.415 0Zm12.728 12.728a1 1 0 0 1 0 1.414l-1.414 1.414a1 1 0 0 1-1.414-1.414l1.414-1.414a1 1 0 0 1 1.414 0Z"></path>
+            </svg>
+            <svg class="icon-dark" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 13.3A8.5 8.5 0 0 1 10.7 3a1 1 0 0 0-1.2 1.2A7 7 0 1 0 19.8 14.5a1 1 0 0 0-1.2-1.2Z"></path>
+            </svg>
+          </button>
         </div>
-
-        <section class="space-y-4">
-          <label class="block ui-label">Commodity</label>
-          <div class="relative">
-            <select id="commodity" class="appearance-none w-full py-3 pl-4 pr-10 bg-white border rounded-lg" aria-label="Commodity selector">
-              <option>Onion</option>
-              <option>Tomato</option>
-            </select>
-            <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-          </div>
-
-          <div class="pt-4">
-            <label class="block text-xs text-slate-500">Temperature (°C)</label>
-            <div class="flex items-center gap-3 mt-2">
-              <input id="temp" type="range" min="0" max="50" value="25" class="slider" />
-              <div id="tempVal" class="w-14 text-right font-medium">25</div>
-            </div>
-          </div>
-
-          <div class="pt-2">
-            <label class="block text-xs text-slate-500">Rainfall (mm)</label>
-            <div class="flex items-center gap-3 mt-2">
-              <input id="rain" type="range" min="0" max="300" value="50" class="slider" />
-              <div id="rainVal" class="w-14 text-right font-medium">50</div>
-            </div>
-          </div>
-
-          <div class="pt-2">
-            <label class="block text-xs text-slate-500">Humidity (%)</label>
-            <div class="flex items-center gap-3 mt-2">
-              <input id="hum" type="range" min="0" max="100" value="60" class="slider" />
-              <div id="humVal" class="w-14 text-right font-medium">60</div>
-            </div>
-          </div>
-
-          <div class="pt-4 border-t" style="border-color:var(--apple-border)">
-            <div class="flex items-center justify-between mt-4">
-              <div class="ui-label">Advanced</div>
-              <button id="advancedToggle" class="text-xs text-blue-600">Show</button>
-            </div>
-
-            <div id="advanced" class="mt-4 hidden space-y-3">
-              <div>
-                <label class="text-xs text-slate-500">Price lag 7d</label>
-                <input id="lag7" type="number" class="appearance-none w-full py-2 pl-3 pr-3 bg-white border rounded-lg" value="0" />
-              </div>
-              <div>
-                <label class="text-xs text-slate-500">Price lag 30d</label>
-                <input id="lag30" type="number" class="appearance-none w-full py-2 pl-3 pr-3 bg-white border rounded-lg" value="0" />
-              </div>
-              <div>
-                <label class="text-xs text-slate-500">Rainfall 7d sum</label>
-                <input id="rain7" type="number" class="appearance-none w-full py-2 pl-3 pr-3 bg-white border rounded-lg" value="0" />
-              </div>
-              <div class="flex gap-3">
-                <div class="flex-1">
-                  <label class="text-xs text-slate-500">Month</label>
-                  <input id="month" type="number" min="1" max="12" value="6" class="appearance-none w-full py-2 pl-3 pr-3 bg-white border rounded-lg" />
-                </div>
-                <div class="flex-1">
-                  <label class="text-xs text-slate-500">Day</label>
-                  <input id="day" type="number" min="1" max="366" value="180" class="appearance-none w-full py-2 pl-3 pr-3 bg-white border rounded-lg" />
-                </div>
-              </div>
-              <div class="flex gap-3">
-                <label class="inline-flex items-center gap-2">
-                  <input id="drought" type="checkbox" class="accent-blue-600" />
-                  <span class="text-xs text-slate-500">Drought</span>
-                </label>
-                <label class="inline-flex items-center gap-2">
-                  <input id="flood" type="checkbox" class="accent-blue-600" />
-                  <span class="text-xs text-slate-500">Flood</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <button id="predictBtn" class="w-full py-3 rounded-lg bg-black text-white text-lg shadow-sm hover:opacity-95 active:scale-98">Predict Price</button>
-          </div>
-        </section>
-      </aside>
-
-      <!-- Insights -->
-      <main class="flex-1 p-8">
-        <div id="emptyState" class="h-full flex flex-col items-center justify-center text-center text-slate-500">
-          <div class="text-5xl ui-title text-slate-700">Predictive insights await</div>
-          <p class="mt-2">Configure the inputs and tap <strong>Predict Price</strong> to view the forecast.</p>
-        </div>
-
-        <div id="resultState" class="hidden h-full glass-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="ui-label">Predicted Price</div>
-              <div id="priceDisplayQuintal" class="ui-price">₹0.00 / quintal</div>
-              <div id="priceDisplayKg" class="text-sm text-slate-500">₹0.00 / kg</div>
-            </div>
-            <div class="flex gap-3 items-center">
-              <div class="metric-card">
-                <div class="metric-label">MAE</div>
-                <div id="maeBadge" class="metric-value">-</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">RMSE</div>
-                <div id="rmseBadge" class="metric-value">-</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 grid grid-cols-3 gap-6">
-            <div class="col-span-2 bg-white border rounded-xl p-6 card-floating" style="border-color:var(--apple-border)">
-              <div class="flex items-start justify-between">
-                <div>
-                  <div class="ui-sub">Market Insights & Diagnostics</div>
-                  <div class="text-sm text-slate-500">Price Trajectory (7-day forecast)</div>
-                </div>
-              </div>
-              <div class="mt-4"><canvas id="priceChart" height="160"></canvas></div>
-            </div>
-
-            <div class="col-span-1 space-y-4">
-              <div class="bg-white border rounded-xl p-4 card-floating" style="border-color:var(--apple-border)">
-                <div class="ui-sub">Drivers</div>
-                <canvas id="driversChart" height="160"></canvas>
-              </div>
-
-              <div class="bg-white border rounded-xl p-4 card-floating" style="border-color:var(--apple-border)">
-                <div class="ui-sub">Assets</div>
-                <div class="mt-3 grid grid-cols-1 gap-3">
-                  <div class="asset-frame"><img id="assetImage" src="/static/images/onion.svg" alt="commodity"/></div>
-                  <div class="asset-frame"><img id="mapImage" src="/static/images/map.svg" alt="map"/></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
       </div>
-    </div>
+    </header>
 
-    <script src="/static/js/ambience3d.js"></script>
-    <script src="/static/js/app.js"></script>
-  </body>
+    <main id="top">
+      <section class="hero">
+        <div class="container hero-grid">
+          <div class="reveal" data-reveal>
+            <div class="eyebrow"><span class="eyebrow-dot"></span><span id="modelStatusText">Checking intelligence layer...</span></div>
+            <h1>AI Agriculture Prediction.<span class="sub">Built for the future. Two inputs in, market intelligence out.</span></h1>
+            <p class="hero-copy">An ultra-clean prediction experience for onion and tomato forecasting. The system fills the rest automatically, then returns a polished forecast with confidence, trend, and insight in a single motion.</p>
+            <div class="hero-actions">
+              <a href="#predict" class="primary-btn">Open prediction panel</a>
+              <a href="#features" class="secondary-btn">Explore features</a>
+            </div>
+            <div class="hero-meta">
+              <div class="meta-card">
+                <span>Inputs required</span>
+                <strong>2</strong>
+              </div>
+              <div class="meta-card">
+                <span>Model experience</span>
+                <strong>Premium</strong>
+              </div>
+              <div class="meta-card">
+                <span>Theme support</span>
+                <strong>Dual mode</strong>
+              </div>
+            </div>
+            <div class="hint-line">
+              <span class="pill"><span class="status-dot"></span> Apple-style motion</span>
+              <span class="pill">Local theme memory</span>
+              <span class="pill">GPU-friendly effects</span>
+            </div>
+          </div>
+
+          <div class="hero-visual reveal" data-reveal>
+            <div class="orb-layer" aria-hidden="true">
+              <div class="orb one"></div>
+              <div class="orb two"></div>
+              <div class="orb three"></div>
+            </div>
+
+            <div class="ai-core" id="aiCore">
+              <div class="ai-rings">
+                <div class="ring r1"></div>
+                <div class="ring r2"></div>
+                <div class="ring r3"></div>
+              </div>
+              <div class="ai-shell">
+                <div class="ai-face">
+                  <div class="ai-mouth"></div>
+                </div>
+              </div>
+              <div class="ai-label" id="aiLabel">
+                <span class="label-dot"></span>
+                <span id="aiMessage">Standing by for prediction.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="predict">
+        <div class="container panel-grid">
+          <div class="glass-card reveal" data-reveal>
+            <div class="glass-card-inner">
+              <div class="section-kicker">Prediction panel</div>
+              <h2 class="section-title">Minimal input. Maximum intelligence.</h2>
+              <p class="section-copy">Price from 7 days ago and current temperature are enough. The backend fills the rest, keeps the schema aligned, and produces a premium forecast immediately.</p>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="commodity">Crop</label>
+                  <div class="input-shell"><select id="commodity"><option value="Onion">Onion</option><option value="Tomato">Tomato</option></select></div>
+                </div>
+                <div class="field">
+                  <label for="priceLag7">Price before 7 days</label>
+                  <div class="input-shell"><input id="priceLag7" type="number" min="0" step="0.01" placeholder="Enter 7-day-old price"></div>
+                </div>
+                <div class="field">
+                  <label for="tempMean">Current temperature</label>
+                  <div class="input-shell"><input id="tempMean" type="number" step="0.1" placeholder="Enter current temperature"></div>
+                </div>
+                <button class="predict-btn" id="predictBtn" type="button"><span class="loader" aria-hidden="true"></span><span>Generate prediction</span></button>
+              </div>
+
+              <div class="status-row" aria-live="polite">
+                <div class="status-chip" id="onionChip"><span class="status-dot"></span><span>Onion: <strong>Loading</strong></span></div>
+                <div class="status-chip" id="tomatoChip"><span class="status-dot"></span><span>Tomato: <strong>Loading</strong></span></div>
+                <div class="status-chip"><span class="status-dot"></span><span>Theme: <strong id="themeStateText">Auto</strong></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card reveal" data-reveal>
+            <div class="glass-card-inner chart-card">
+              <div>
+                <div class="section-kicker">AI output</div>
+                <h2 class="section-title">Results that feel alive.</h2>
+                <p class="section-copy">Smooth counters, confidence, trend, and an elegant price graph update instantly when the model responds.</p>
+              </div>
+
+              <div class="chart-wrap">
+                <canvas id="forecastCanvas"></canvas>
+              </div>
+
+              <div class="chart-caption">
+                <span id="chartCaptionLeft">Waiting for your input.</span>
+                <span id="chartCaptionRight">Cinematic forecast</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="resultsTab">
+        <div class="container results-layout">
+          <div class="glass-card reveal" data-reveal>
+            <div class="glass-card-inner price-hero compact-result">
+              <div class="section-kicker">Prediction result</div>
+              <div class="price-value">
+                <div class="price-main">
+                  <strong id="priceAmount">₹0.00</strong>
+                  <span id="trendText">per quintal</span>
+                </div>
+              </div>
+              <div class="price-secondary">
+                <div class="pill">Per kg <strong id="kgPrice">₹0.00</strong></div>
+                <div class="pill">Per quintal <strong id="quintalPrice">₹0.00</strong></div>
+              </div>
+              <div class="insight" id="insightText">The model insight will appear here after you run a prediction. It will summarize market direction and the confidence level in one short sentence.</div>
+              <div class="mini-stats">
+                <div class="stat"><small>Confidence</small><strong id="confidenceValue">--%</strong></div>
+                <div class="stat"><small>MAE / RMSE</small><strong id="errorValue">--</strong></div>
+                <div class="stat"><small>Change</small><strong id="changeValue">--</strong></div>
+              </div>
+              <div class="hint-line">
+                <span class="pill">Quintal + kg output</span>
+                <span class="pill">Animated count-up</span>
+                <span class="pill">Auto-filled features</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card reveal" data-reveal>
+            <div class="glass-card-inner">
+              <div class="section-kicker">System intelligence</div>
+              <h2 class="section-title">Designed for clarity.</h2>
+              <p class="section-copy">The interface stays quiet and premium while the machine handles feature completion, trend detection, and result composition behind the scenes.</p>
+              <div class="features-grid" id="features">
+                <article class="feature">
+                  <div class="feature-icon">◌</div>
+                  <h3>AI Forecasting</h3>
+                  <p>Modern RandomForest predictions trained on crop history, market patterns, and weather context.</p>
+                </article>
+                <article class="feature">
+                  <div class="feature-icon">◈</div>
+                  <h3>Smart Market Trends</h3>
+                  <p>Automatically interprets direction, confidence, and change so the result is readable at a glance.</p>
+                </article>
+                <article class="feature">
+                  <div class="feature-icon">◍</div>
+                  <h3>Real-Time Analysis</h3>
+                  <p>Fast enough for live product use, with a UI that stays responsive and fluid on every screen size.</p>
+                </article>
+                <article class="feature">
+                  <div class="feature-icon">◎</div>
+                  <h3>Intelligent Predictions</h3>
+                  <p>Only two fields are required. The rest is inferred automatically from the crop and historical data.</p>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="container footer-inner">
+          <div><strong>AgriPredict AI</strong> <span> - premium agriculture intelligence</span></div>
+          <div>Apple-inspired experience for onion and tomato forecasting.</div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const storageKey = 'agri-theme';
+      const themeText = document.getElementById('themeStateText');
+      const themeSwitch = document.getElementById('themeSwitch');
+      const aiCore = document.getElementById('aiCore');
+      const aiMessage = document.getElementById('aiMessage');
+      const modelStatusText = document.getElementById('modelStatusText');
+      const predictBtn = document.getElementById('predictBtn');
+      const priceAmount = document.getElementById('priceAmount');
+      const trendText = document.getElementById('trendText');
+      const insightText = document.getElementById('insightText');
+      const confidenceValue = document.getElementById('confidenceValue');
+      const errorValue = document.getElementById('errorValue');
+      const changeValue = document.getElementById('changeValue');
+      const quintalPrice = document.getElementById('quintalPrice');
+      const kgPrice = document.getElementById('kgPrice');
+      const chartCaptionLeft = document.getElementById('chartCaptionLeft');
+      const resultsTab = document.getElementById('resultsTab');
+      const onionChip = document.getElementById('onionChip');
+      const tomatoChip = document.getElementById('tomatoChip');
+      const forecastCanvas = document.getElementById('forecastCanvas');
+      const forecastCtx = forecastCanvas.getContext('2d');
+      const sections = document.querySelectorAll('[data-reveal]');
+      let lastForecast = [];
+      let activeTheme = 'light';
+
+      function applyTheme(theme) {
+        activeTheme = theme;
+        root.dataset.theme = theme;
+        themeText.textContent = theme === 'dark' ? 'Dark' : 'Light';
+        localStorage.setItem(storageKey, theme);
+      }
+
+      const storedTheme = localStorage.getItem(storageKey);
+      applyTheme(storedTheme || (prefersDark ? 'dark' : 'light'));
+
+      if (window.matchMedia) {
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        media.addEventListener?.('change', (event) => {
+          if (!localStorage.getItem(storageKey)) {
+            applyTheme(event.matches ? 'dark' : 'light');
+          }
+        });
+      }
+
+      themeSwitch.addEventListener('click', () => {
+        applyTheme(activeTheme === 'dark' ? 'light' : 'dark');
+      });
+
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.15 });
+      sections.forEach((section) => revealObserver.observe(section));
+
+      const pointerState = { x: 0, y: 0, targetX: 0, targetY: 0 };
+      window.addEventListener('pointermove', (event) => {
+        pointerState.targetX = (event.clientX / window.innerWidth) * 2 - 1;
+        pointerState.targetY = (event.clientY / window.innerHeight) * 2 - 1;
+      }, { passive: true });
+
+      function animateMotion() {
+        pointerState.x += (pointerState.targetX - pointerState.x) * 0.06;
+        pointerState.y += (pointerState.targetY - pointerState.y) * 0.06;
+        aiCore.style.transform = `translate3d(${pointerState.x * 14}px, ${pointerState.y * 12}px, 0) rotateX(${(-pointerState.y * 5).toFixed(2)}deg) rotateY(${(pointerState.x * 6).toFixed(2)}deg)`;
+        requestAnimationFrame(animateMotion);
+      }
+      requestAnimationFrame(animateMotion);
+
+      function setLoading(isLoading) {
+        predictBtn.classList.toggle('is-loading', isLoading);
+        predictBtn.disabled = isLoading;
+        aiMessage.textContent = isLoading ? 'Scanning market signals...' : 'Standing by for prediction.';
+        aiCore.style.filter = isLoading ? 'drop-shadow(0 0 24px rgba(91,124,250,0.28))' : 'none';
+      }
+
+      function countTo(target, el, decimals = 2, prefix = '', suffix = '') {
+        const start = performance.now();
+        const from = Number(el.dataset.value || 0);
+        const to = Number(target || 0);
+        const duration = 900;
+        function tick(now) {
+          const t = Math.min(1, (now - start) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          const value = from + (to - from) * eased;
+          el.textContent = `${prefix}${value.toFixed(decimals)}${suffix}`;
+          if (t < 1) requestAnimationFrame(tick);
+          else el.dataset.value = String(to);
+        }
+        requestAnimationFrame(tick);
+      }
+
+      function drawForecast(series) {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const rect = forecastCanvas.getBoundingClientRect();
+        forecastCanvas.width = Math.floor(rect.width * dpr);
+        forecastCanvas.height = Math.floor(rect.height * dpr);
+        forecastCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        forecastCtx.clearRect(0, 0, rect.width, rect.height);
+        forecastCtx.__lastY = undefined;
+
+        const pad = 22;
+        const values = series.length ? series : [0, 0, 0, 0, 0, 0, 0];
+        const max = Math.max(...values, 1);
+        const min = Math.min(...values, max);
+        const width = rect.width - pad * 2;
+        const height = rect.height - pad * 2;
+        const step = width / Math.max(values.length - 1, 1);
+
+        forecastCtx.beginPath();
+        values.forEach((v, index) => {
+          const x = pad + index * step;
+          const normalized = (v - min) / Math.max(max - min, 1);
+          const y = pad + height - normalized * (height * 0.78 + 22);
+          if (index === 0) forecastCtx.moveTo(x, y);
+          else {
+            const prevX = pad + (index - 1) * step;
+            const prevY = forecastCtx.__lastY ?? y;
+            const c1x = prevX + step * 0.4;
+            const c1y = prevY;
+            const c2x = x - step * 0.4;
+            const c2y = y;
+            forecastCtx.bezierCurveTo(c1x, c1y, c2x, c2y, x, y);
+          }
+          forecastCtx.__lastY = y;
+        });
+
+        const gradient = forecastCtx.createLinearGradient(0, 0, rect.width, rect.height);
+        gradient.addColorStop(0, activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.96)' : 'rgba(91, 124, 250, 0.94)');
+        gradient.addColorStop(1, activeTheme === 'dark' ? 'rgba(94, 234, 212, 0.92)' : 'rgba(87, 214, 201, 0.92)');
+
+        forecastCtx.lineWidth = 3;
+        forecastCtx.lineCap = 'round';
+        forecastCtx.lineJoin = 'round';
+        forecastCtx.strokeStyle = gradient;
+        forecastCtx.shadowColor = activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.45)' : 'rgba(91, 124, 250, 0.24)';
+        forecastCtx.shadowBlur = 18;
+        forecastCtx.stroke();
+
+        forecastCtx.lineTo(pad + width, pad + height);
+        forecastCtx.lineTo(pad, pad + height);
+        forecastCtx.closePath();
+        const fillGradient = forecastCtx.createLinearGradient(0, 0, 0, rect.height);
+        fillGradient.addColorStop(0, activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.18)' : 'rgba(91, 124, 250, 0.18)');
+        fillGradient.addColorStop(1, 'rgba(255,255,255,0)');
+        forecastCtx.fillStyle = fillGradient;
+        forecastCtx.fill();
+
+        values.forEach((v, index) => {
+          const x = pad + index * step;
+          const normalized = (v - min) / Math.max(max - min, 1);
+          const y = pad + height - normalized * (height * 0.78 + 22);
+          forecastCtx.beginPath();
+          forecastCtx.fillStyle = 'rgba(255,255,255,0.92)';
+          forecastCtx.arc(x, y, index === values.length - 1 ? 5 : 3.5, 0, Math.PI * 2);
+          forecastCtx.fill();
+        });
+      }
+
+      function statusChip(node, ready, label) {
+        node.classList.toggle('ready', ready);
+        node.querySelector('strong').textContent = label;
+      }
+
+      async function loadStatus() {
+        if (location.protocol === 'file:') {
+          modelStatusText.textContent = 'Open through Flask to load live model status.';
+          return;
+        }
+        try {
+          const response = await fetch('/status');
+          const data = await response.json();
+          const onionReady = data.models?.Onion === 'ready';
+          const tomatoReady = data.models?.Tomato === 'ready';
+          statusChip(onionChip, onionReady, onionReady ? 'Ready' : 'Loading');
+          statusChip(tomatoChip, tomatoReady, tomatoReady ? 'Ready' : 'Loading');
+          modelStatusText.textContent = data.training ? 'Models are training in the background.' : 'Model intelligence is online.';
+        } catch (error) {
+          modelStatusText.textContent = 'Model status unavailable right now.';
+        }
+      }
+
+      function buildInsight(result) {
+        const direction = result.trend === 'up' ? 'rising' : result.trend === 'down' ? 'softening' : 'holding steady';
+        return `The market looks ${direction} with ${Number(result.confidence || 0).toFixed(1)}% confidence. ${result.change_pct > 0 ? 'Momentum is positive.' : result.change_pct < 0 ? 'Momentum is cooling.' : 'Momentum is balanced.'}`;
+      }
+
+      async function predict() {
+        const commodity = document.getElementById('commodity').value;
+        const priceLag7 = document.getElementById('priceLag7').value;
+        const tempMean = document.getElementById('tempMean').value;
+
+        if (priceLag7 === '' || tempMean === '') {
+          aiMessage.textContent = 'Please enter both values.';
+          return;
+        }
+
+        setLoading(true);
+        chartCaptionLeft.textContent = 'Model is thinking...';
+        try {
+          const response = await fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              commodity,
+              price_lag_7d: Number(priceLag7),
+              temp_mean: Number(tempMean)
+            })
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.message || data.error || 'Prediction failed');
+          }
+
+          const price = Number(data.price || 0);
+          const pricePerKg = Number(data.price_per_kg ?? (price / 100));
+          const pricePerQuintal = Number(data.price_per_quintal ?? price);
+          countTo(pricePerQuintal, priceAmount, 2, '₹');
+          countTo(pricePerQuintal, quintalPrice, 2, '₹');
+          countTo(pricePerKg, kgPrice, 2, '₹');
+          trendText.textContent = data.trend ? `${data.trend.toUpperCase()} · per quintal` : 'per quintal';
+          confidenceValue.textContent = `${Number(data.confidence || 0).toFixed(1)}%`;
+          errorValue.textContent = `${data.mae ?? '--'} / ${data.rmse ?? '--'}`;
+          changeValue.textContent = `${Number(data.change_pct || 0).toFixed(1)}%`;
+          insightText.textContent = buildInsight(data);
+          aiMessage.textContent = 'Forecast generated successfully.';
+
+          const forecast = Array.isArray(data.forecast) && data.forecast.length ? data.forecast : [price * 0.96, price * 0.98, price, price * 1.01, price * 1.02, price * 1.03, price * 1.04];
+          lastForecast = forecast.map((item) => Number(item) || 0);
+          drawForecast(lastForecast);
+          chartCaptionLeft.textContent = `${commodity} forecast updated.`;
+          document.getElementById('themeStateText').textContent = activeTheme === 'dark' ? 'Dark' : 'Light';
+          resultsTab?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+          aiMessage.textContent = error.message;
+          insightText.textContent = error.message;
+          chartCaptionLeft.textContent = 'Prediction unavailable.';
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      predictBtn.addEventListener('click', predict);
+      window.addEventListener('resize', () => drawForecast(lastForecast.length ? lastForecast : [0, 0, 0, 0, 0, 0, 0]));
+      window.addEventListener('load', () => {
+        loadStatus();
+        drawForecast([0, 0, 0, 0, 0, 0, 0]);
+      });
+    })();
+  </script>
+</body>
 </html>

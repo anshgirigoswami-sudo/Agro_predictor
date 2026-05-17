@@ -32,17 +32,60 @@
           </div>
           <div class="form-row two">
             <div>
-              <label>Temp (°C)</label>
+              <label>Date</label>
+              <input name="Date" type="date" value="">
+            </div>
+            <div>
+              <label>Market</label>
+              <input name="Market Name" type="text" placeholder="e.g. Nashik">
+            </div>
+          </div>
+          <div class="form-row three">
+            <div>
+              <label>Temp mean (°C)</label>
               <input name="temp_mean" type="number" step="0.1" value="28">
             </div>
+            <div>
+              <label>Temp min (°C)</label>
+              <input name="temp_min" type="number" step="0.1" value="22">
+            </div>
+            <div>
+              <label>Temp max (°C)</label>
+              <input name="temp_max" type="number" step="0.1" value="34">
+            </div>
+          </div>
+          <div class="form-row three">
             <div>
               <label>Rainfall (mm)</label>
               <input name="rainfall_mm" type="number" step="0.1" value="2">
             </div>
+            <div>
+              <label>Humidity (%)</label>
+              <input name="humidity" type="number" step="0.1" value="70">
+            </div>
+            <div>
+              <label>Wind speed (m/s)</label>
+              <input name="wind_speed" type="number" step="0.1" value="2">
+            </div>
           </div>
           <div class="form-row">
-            <label>Modal price (last 7d avg ₹/kg)</label>
-            <input name="price_lag_7d" type="number" step="0.1" value="32">
+            <label>Last prices (₹/quintal) — provide known lags if available</label>
+            <div class="form-row three">
+              <div><input name="price_lag_1d" type="number" step="0.1" placeholder="1d lag"></div>
+              <div><input name="price_lag_3d" type="number" step="0.1" placeholder="3d lag"></div>
+              <div><input name="price_lag_7d" type="number" step="0.1" placeholder="7d lag"></div>
+            </div>
+            <small class="muted">If you don't have these, leave blank — the app will approximate using model defaults.</small>
+          </div>
+          <div class="form-row two">
+            <div>
+              <label>7-day rainfall sum (mm)</label>
+              <input name="rainfall_mm_7d_sum" type="number" step="0.1" value="0">
+            </div>
+            <div>
+              <label>Arrival qty (quintals)</label>
+              <input name="arrival_qty" type="number" step="0.1" value="">
+            </div>
           </div>
           <button class="btn btn-primary" type="submit">Predict Price</button>
         </form>
