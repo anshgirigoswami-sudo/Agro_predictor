@@ -1,4 +1,8 @@
-from Main import app
+from Main import app, load_persisted_models, models
+
+
+if not models:
+    load_persisted_models()
 
 
 if __name__ == '__main__':
