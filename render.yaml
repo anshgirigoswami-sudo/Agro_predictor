@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: agri-predictor
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    autoDeploy: true
+    envVars:
+      - key: ENABLE_BACKGROUND_TRAIN
+        value: "0"
+      - key: FLASK_DEBUG
+        value: "False"

@@ -26,7 +26,9 @@ git push origin main
    - **Region**: Choose closest to you
    - **Branch**: main
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn Main:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60`
+  - **Start Command**: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60`
+
+  If you add the included `render.yaml` file to the repo, Render can use that automatically instead of manual dashboard settings.
 
 ### 3. Configure Environment Variables
 
@@ -77,6 +79,12 @@ On free tier, first request after 15 min inactivity may take 3-5 seconds (auto-s
 Pre-trained models are included in the repo:
 - `models/Onion_best.joblib` — RandomForest trained on historical onion prices
 - `models/Tomato_best.joblib` — RandomForest trained on historical tomato prices
+
+## Recommended Render Files
+
+- `app.py` exposes the Flask app through the standard `app:app` entrypoint.
+- `render.yaml` pins the build and start commands for repeatable deploys.
+- `runtime.txt` pins the Python version used by Render.
 
 Models load at startup; no training happens on Render free tier (ENABLE_BACKGROUND_TRAIN=0).
 
