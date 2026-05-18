@@ -89,7 +89,9 @@ Add a UI screenshot to showcase the live prediction view. Recommended size: 1200
 Place the image in the repository and reference it here. Example:
 
 ```markdown
-![App UI](images/ui_screenshot.png)
+![App UI 1](images/screenshots/screenshot1.svg)
+![App UI 2](images/screenshots/screenshot2.svg)
+![App UI 3](images/screenshots/screenshot3.svg)
 ```
 
 Replace `images/ui_screenshot.png` with your actual screenshot path and commit the image.
