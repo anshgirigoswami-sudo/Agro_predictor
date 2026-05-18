@@ -418,8 +418,12 @@ def background_train():
             is_training = False
 
 
-def load_persisted_models():
-    """Load any joblib models from the models directory into memory and compute quick metrics if dataset available."""
+def load_persisted_models(evaluate: bool = True):
+    """Load any joblib models from the models directory into memory.
+
+    When evaluate is True, also compute quick metrics from the dataset.
+    Render startup should use evaluate=False to avoid delaying port binding.
+    """
     global models, metrics
     os.makedirs(MODEL_DIR, exist_ok=True)
     files = glob.glob(os.path.join(MODEL_DIR, '*.joblib')) + glob.glob(os.path.join(MODEL_DIR, '*.pkl'))
@@ -440,24 +444,25 @@ def load_persisted_models():
             if crop:
                 models[crop] = m
                 metrics[crop] = {'mae': None, 'rmse': None}
-                # try quick evaluation (small sample) to populate metrics
-                try:
-                    if os.path.exists(DATA_PATH):
-                        sdf = pd.read_csv(DATA_PATH, nrows=100000)
-                        sdf = sdf.ffill().bfill()
-                        cdf = sdf[sdf['Commodity'].astype(str).str.strip().str.lower() == crop.lower()].copy()
-                        if not cdf.empty and 'Modal_Price' in cdf.columns:
-                            X = cdf[FEATURES].apply(pd.to_numeric, errors='coerce').fillna(0)
-                            y = cdf['Modal_Price'].astype(float)
-                            if len(X) > 10:
-                                from sklearn.model_selection import train_test_split
-                                X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
-                                preds = m.predict(X_te)
-                                mae = float(mean_absolute_error(y_te, preds))
-                                rmse = float(sqrt(mean_squared_error(y_te, preds)))
-                                metrics[crop] = {'mae': round(mae,3), 'rmse': round(rmse,3)}
-                except Exception as ee:
-                    print('Quick eval failed for', crop, ee)
+                if evaluate:
+                    # try quick evaluation (small sample) to populate metrics
+                    try:
+                        if os.path.exists(DATA_PATH):
+                            sdf = pd.read_csv(DATA_PATH, nrows=100000)
+                            sdf = sdf.ffill().bfill()
+                            cdf = sdf[sdf['Commodity'].astype(str).str.strip().str.lower() == crop.lower()].copy()
+                            if not cdf.empty and 'Modal_Price' in cdf.columns:
+                                X = cdf[FEATURES].apply(pd.to_numeric, errors='coerce').fillna(0)
+                                y = cdf['Modal_Price'].astype(float)
+                                if len(X) > 10:
+                                    from sklearn.model_selection import train_test_split
+                                    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
+                                    preds = m.predict(X_te)
+                                    mae = float(mean_absolute_error(y_te, preds))
+                                    rmse = float(mean_squared_error(y_te, preds) ** 0.5)
+                                    metrics[crop] = {'mae': round(mae, 3), 'rmse': round(rmse, 3)}
+                    except Exception as ee:
+                        print('Quick eval failed for', crop, ee)
             else:
                 print('Loaded model', name, 'but could not infer crop; model available as', name)
         except Exception as e:

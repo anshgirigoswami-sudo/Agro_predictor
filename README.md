@@ -82,22 +82,6 @@ Other useful endpoints:
 
 --
 
-## Screenshot
-
-Add a UI screenshot to showcase the live prediction view. Recommended size: 1200×600 (PNG or JPG).
-
-Place the image in the repository and reference it here. Example:
-
-```markdown
-![App UI 1](images/screenshots/screenshot1.svg)
-![App UI 2](images/screenshots/screenshot2.svg)
-![App UI 3](images/screenshots/screenshot3.svg)
-```
-
-Replace `images/ui_screenshot.png` with your actual screenshot path and commit the image.
-
---
-
 ## Folder structure
 
 Top-level layout (trimmed):
@@ -123,7 +107,10 @@ static/
 	css/
 		apple_ui.css
 images/
-	(place screenshots here)
+	screenshots/
+		screenshot1.svg
+		screenshot2.svg
+		screenshot3.svg
 templates/
 	index.html
 	predict.html
@@ -132,15 +119,17 @@ templates/
 
 This structure shows the app entry point, model storage, training utilities, static assets and templates used by the Flask UI.
 
-## Screenshots (local)
+## 📸 Screenshots
 
-The following screenshots are included locally in the project root for reference. They are intentionally ignored by `.gitignore` and are not pushed to the remote repository.
+<p align="center">
+	<img src="images/screenshots/screenshot1.svg" alt="Screenshot 1" width="31%" />
+	<img src="images/screenshots/screenshot2.svg" alt="Screenshot 2" width="31%" />
+	<img src="images/screenshots/screenshot3.svg" alt="Screenshot 3" width="31%" />
+</p>
 
-![Screenshot 1](Screenshot%202026-05-18%20230630.png)
-![Screenshot 2](Screenshot%202026-05-18%20230711.png)
-![Screenshot 3](Screenshot%202026-05-18%20230756.png)
-
-If you want the images to appear on GitHub, move them into an `images/` folder and commit them (or remove the ignore patterns in `.gitignore`).
+<p align="center">
+	<strong>Screenshot 1</strong> &nbsp;|&nbsp; <strong>Screenshot 2</strong> &nbsp;|&nbsp; <strong>Screenshot 3</strong>
+</p>
 
 ## Dataset & Features
 

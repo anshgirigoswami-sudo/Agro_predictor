@@ -2,7 +2,7 @@ from Main import app, load_persisted_models, models
 
 
 if not models:
-    load_persisted_models()
+    load_persisted_models(evaluate=False)
 
 
 if __name__ == '__main__':
