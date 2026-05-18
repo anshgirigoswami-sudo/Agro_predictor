@@ -901,6 +901,67 @@
       animation: chartFloat 7s ease-in-out infinite;
     }
 
+    .chart-legend {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 2;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: calc(100% - 28px);
+      pointer-events: none;
+    }
+
+    .chart-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--surface) 84%, transparent);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 0.78rem;
+      font-weight: 600;
+      backdrop-filter: blur(18px);
+    }
+
+    .chart-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    .swatch-history { color: #94a3b8; background: #94a3b8; }
+    .swatch-forecast { color: #5b7cfa; background: #5b7cfa; }
+    .swatch-boundary { color: #e2e8f0; background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(148,163,184,.95)); }
+
+    .chart-axis-label {
+      position: absolute;
+      z-index: 2;
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .chart-axis-y {
+      left: 16px;
+      bottom: 16px;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      transform-origin: center;
+    }
+
+    .chart-axis-x {
+      right: 18px;
+      bottom: 14px;
+    }
+
     canvas {
       display: block;
       width: 100%;
@@ -1327,6 +1388,13 @@
               </div>
 
               <div class="chart-wrap">
+                <div class="chart-legend" aria-label="Chart legend">
+                  <span class="chart-tag"><span class="chart-swatch swatch-history"></span>Historical prices</span>
+                  <span class="chart-tag"><span class="chart-swatch swatch-forecast"></span>Forecast trend</span>
+                  <span class="chart-tag"><span class="chart-swatch swatch-boundary"></span>Forecast boundary</span>
+                </div>
+                <div class="chart-axis-label chart-axis-y">₹ / quintal</div>
+                <div class="chart-axis-label chart-axis-x">Timeline</div>
                 <canvas id="forecastCanvas"></canvas>
               </div>
 
