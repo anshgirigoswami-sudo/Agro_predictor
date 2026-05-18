@@ -1521,7 +1521,17 @@
         const historical = Array.isArray(series?.historical) ? series.historical.filter((v) => Number.isFinite(Number(v))) : [];
         const forecast = Array.isArray(series?.forecast) ? series.forecast.filter((v) => Number.isFinite(Number(v))) : [];
         const values = historical.length ? historical.concat(forecast.length ? forecast : []) : (Array.isArray(series) ? series : []);
-        const safeValues = values.length ? values.map((v) => Number(v) || 0) : [0, 0, 0, 0, 0, 0, 0];
+        const safeValues = values.length ? values.map((v) => Number(v) || 0) : [];
+        if (!safeValues.length) {
+          forecastCtx.clearRect(0, 0, rect.width, rect.height);
+          forecastCtx.save();
+          forecastCtx.fillStyle = activeTheme === 'dark' ? 'rgba(226,232,240,0.72)' : 'rgba(15,23,42,0.54)';
+          forecastCtx.font = '600 15px Inter, sans-serif';
+          forecastCtx.textAlign = 'center';
+          forecastCtx.fillText('Forecast will appear after prediction', rect.width / 2, rect.height / 2);
+          forecastCtx.restore();
+          return;
+        }
         const max = Math.max(...safeValues, 1);
         const min = Math.min(...safeValues, max);
         const width = rect.width - pad * 2;
@@ -1696,12 +1706,19 @@
           const series = data.series?.[commodity] || [];
           lastHistorical = series.filter((value) => value !== null && value !== undefined).map((value) => Number(value) || 0);
           activeCommodity = commodity;
-          if (!lastForecast.length) {
+          if (!lastForecast.length && lastHistorical.length) {
             drawForecast({ historical: lastHistorical, forecast: [] });
             chartCaptionLeft.textContent = `${commodity} market history loaded.`;
+          } else if (!lastHistorical.length) {
+            chartCaptionLeft.textContent = `${commodity} history is unavailable on this deployment. Run a prediction to see the forecast.`;
           }
         } catch (error) {
           console.warn('market series unavailable', error);
+          lastHistorical = [];
+          if (!lastForecast.length) {
+            chartCaptionLeft.textContent = 'Market history unavailable. Run a prediction to see the forecast.';
+            drawForecast({ historical: [], forecast: [] });
+          }
         }
       }
 
