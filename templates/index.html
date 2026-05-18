@@ -1842,7 +1842,17 @@
           if (!lastHistorical.length || previousCommodity !== commodity) {
             await loadMarketSeries(commodity);
           }
-          drawForecast({ historical: lastHistorical.length ? lastHistorical.slice(-14) : [], forecast: lastForecast });
+          const priceLagValue = Number(priceLag7 || 0);
+          const historyFallback = lastHistorical.length
+            ? lastHistorical.slice(-14)
+            : [
+                priceLagValue * 0.97,
+                priceLagValue * 0.99,
+                priceLagValue,
+                priceLagValue * 1.01,
+              ].filter((value) => Number.isFinite(value) && value > 0);
+          const combinedHistory = historyFallback.length ? historyFallback : [price * 0.98, price * 0.99, price];
+          drawForecast({ historical: combinedHistory, forecast: lastForecast });
           chartCaptionLeft.textContent = `${commodity} prediction complete.`;
           document.getElementById('themeStateText').textContent = activeTheme === 'dark' ? 'Dark' : 'Light';
           resultsTab?.scrollIntoView({ behavior: 'smooth', block: 'start' });
