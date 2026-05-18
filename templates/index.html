@@ -1400,7 +1400,7 @@
 
               <div class="chart-caption">
                 <span id="chartCaptionLeft">Waiting for your input.</span>
-                <span id="chartCaptionRight">Cinematic forecast</span>
+                <span id="chartCaptionRight">Live prediction</span>
               </div>
             </div>
           </div>
@@ -1833,7 +1833,7 @@
           errorValue.textContent = `${data.mae ?? '--'} / ${data.rmse ?? '--'}`;
           changeValue.textContent = `${Number(data.change_pct || 0).toFixed(1)}%`;
           insightText.textContent = buildInsight(data);
-          aiMessage.textContent = 'Forecast generated successfully.';
+          aiMessage.textContent = 'Prediction generated successfully.';
 
           const forecast = Array.isArray(data.forecast) && data.forecast.length ? data.forecast : [price * 0.96, price * 0.98, price, price * 1.01, price * 1.02, price * 1.03, price * 1.04];
           const previousCommodity = activeCommodity;
@@ -1843,7 +1843,7 @@
             await loadMarketSeries(commodity);
           }
           drawForecast({ historical: lastHistorical.length ? lastHistorical.slice(-14) : [], forecast: lastForecast });
-          chartCaptionLeft.textContent = `${commodity} forecast updated.`;
+          chartCaptionLeft.textContent = `${commodity} prediction complete.`;
           document.getElementById('themeStateText').textContent = activeTheme === 'dark' ? 'Dark' : 'Light';
           resultsTab?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (error) {
