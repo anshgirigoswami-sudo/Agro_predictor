@@ -130,6 +130,16 @@ templates/
 
 This structure shows the app entry point, model storage, training utilities, static assets and templates used by the Flask UI.
 
+## Screenshots (local)
+
+The following screenshots are included locally in the project root for reference. They are intentionally ignored by `.gitignore` and are not pushed to the remote repository.
+
+![Screenshot 1](Screenshot%202026-05-18%20230630.png)
+![Screenshot 2](Screenshot%202026-05-18%20230711.png)
+![Screenshot 3](Screenshot%202026-05-18%20230756.png)
+
+If you want the images to appear on GitHub, move them into an `images/` folder and commit them (or remove the ignore patterns in `.gitignore`).
+
 ## Dataset & Features
 
 - The app expects a CSV (`master.csv`) containing market data including at minimum: `Date`, `Commodity`, `Modal_Price`, `Market Name` (or similar identifiers). The project filters to `onion` and `tomato` (case-insensitive).

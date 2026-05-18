@@ -40,3 +40,11 @@ master_aggriculture_dataset.csv
 *.pt
 
 
+master.csv
+.venv/
+# Ignore local screenshots placed for README preview (not pushed)
+Screenshot 2026-05-18 230630.png
+Screenshot 2026-05-18 230711.png
+Screenshot 2026-05-18 230756.png
+# Alternative pattern (uncomment to ignore any screenshot named 'Screenshot*.png')
+# Screenshot*.png
