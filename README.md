@@ -82,6 +82,54 @@ Other useful endpoints:
 
 --
 
+## Screenshot
+
+Add a UI screenshot to showcase the live prediction view. Recommended size: 1200×600 (PNG or JPG).
+
+Place the image in the repository and reference it here. Example:
+
+```markdown
+![App UI](images/ui_screenshot.png)
+```
+
+Replace `images/ui_screenshot.png` with your actual screenshot path and commit the image.
+
+--
+
+## Folder structure
+
+Top-level layout (trimmed):
+
+```
+app.py
+Main.py
+master.csv
+requirements.txt
+runtime.txt
+Procfile
+render.yaml
+models/
+	onion_model.joblib
+	tomato_model.joblib
+scripts/
+	improve_rf_training.py
+	make_compact_models.py
+static/
+	background.js
+	script.js
+	style.css
+	css/
+		apple_ui.css
+images/
+	(place screenshots here)
+templates/
+	index.html
+	predict.html
+	dashboard.html
+```
+
+This structure shows the app entry point, model storage, training utilities, static assets and templates used by the Flask UI.
+
 ## Dataset & Features
 
 - The app expects a CSV (`master.csv`) containing market data including at minimum: `Date`, `Commodity`, `Modal_Price`, `Market Name` (or similar identifiers). The project filters to `onion` and `tomato` (case-insensitive).
