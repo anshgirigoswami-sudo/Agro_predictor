@@ -1436,7 +1436,10 @@
       const forecastCtx = forecastCanvas.getContext('2d');
       const sections = document.querySelectorAll('[data-reveal]');
       let lastForecast = [];
+      let lastHistorical = [];
+      let activeCommodity = 'Onion';
       let activeTheme = 'light';
+      let chartRenderToken = 0;
 
       function applyTheme(theme) {
         activeTheme = theme;
@@ -1508,70 +1511,158 @@
       }
 
       function drawForecast(series) {
+        const token = ++chartRenderToken;
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const rect = forecastCanvas.getBoundingClientRect();
         forecastCanvas.width = Math.floor(rect.width * dpr);
         forecastCanvas.height = Math.floor(rect.height * dpr);
         forecastCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        forecastCtx.clearRect(0, 0, rect.width, rect.height);
-        forecastCtx.__lastY = undefined;
-
-        const pad = 22;
-        const values = series.length ? series : [0, 0, 0, 0, 0, 0, 0];
-        const max = Math.max(...values, 1);
-        const min = Math.min(...values, max);
+        const pad = 26;
+        const historical = Array.isArray(series?.historical) ? series.historical.filter((v) => Number.isFinite(Number(v))) : [];
+        const forecast = Array.isArray(series?.forecast) ? series.forecast.filter((v) => Number.isFinite(Number(v))) : [];
+        const values = historical.length ? historical.concat(forecast.length ? forecast : []) : (Array.isArray(series) ? series : []);
+        const safeValues = values.length ? values.map((v) => Number(v) || 0) : [0, 0, 0, 0, 0, 0, 0];
+        const max = Math.max(...safeValues, 1);
+        const min = Math.min(...safeValues, max);
         const width = rect.width - pad * 2;
         const height = rect.height - pad * 2;
-        const step = width / Math.max(values.length - 1, 1);
-
-        forecastCtx.beginPath();
-        values.forEach((v, index) => {
+        const step = width / Math.max(safeValues.length - 1, 1);
+        const range = Math.max(max - min, 1);
+        const historicalCount = historical.length || safeValues.length;
+        const chartPoints = safeValues.map((v, index) => {
           const x = pad + index * step;
-          const normalized = (v - min) / Math.max(max - min, 1);
+          const normalized = (v - min) / range;
           const y = pad + height - normalized * (height * 0.78 + 22);
-          if (index === 0) forecastCtx.moveTo(x, y);
-          else {
-            const prevX = pad + (index - 1) * step;
-            const prevY = forecastCtx.__lastY ?? y;
-            const c1x = prevX + step * 0.4;
-            const c1y = prevY;
-            const c2x = x - step * 0.4;
-            const c2y = y;
-            forecastCtx.bezierCurveTo(c1x, c1y, c2x, c2y, x, y);
+          return { x, y, value: v, normalized };
+        });
+
+        const drawFrame = (progress) => {
+          if (token !== chartRenderToken) return;
+          forecastCtx.clearRect(0, 0, rect.width, rect.height);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const revealY = pad + height;
+
+          forecastCtx.save();
+          forecastCtx.strokeStyle = activeTheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+          forecastCtx.lineWidth = 1;
+          for (let i = 0; i < 4; i++) {
+            const y = pad + (height / 4) * i;
+            forecastCtx.beginPath();
+            forecastCtx.moveTo(pad, y);
+            forecastCtx.lineTo(pad + width, y);
+            forecastCtx.stroke();
           }
-          forecastCtx.__lastY = y;
-        });
+          forecastCtx.restore();
 
-        const gradient = forecastCtx.createLinearGradient(0, 0, rect.width, rect.height);
-        gradient.addColorStop(0, activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.96)' : 'rgba(91, 124, 250, 0.94)');
-        gradient.addColorStop(1, activeTheme === 'dark' ? 'rgba(94, 234, 212, 0.92)' : 'rgba(87, 214, 201, 0.92)');
+          if (chartPoints.length) {
+            const historicalEnd = Math.max(0, Math.min(historicalCount - 1, chartPoints.length - 1));
 
-        forecastCtx.lineWidth = 3;
-        forecastCtx.lineCap = 'round';
-        forecastCtx.lineJoin = 'round';
-        forecastCtx.strokeStyle = gradient;
-        forecastCtx.shadowColor = activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.45)' : 'rgba(91, 124, 250, 0.24)';
-        forecastCtx.shadowBlur = 18;
-        forecastCtx.stroke();
+            // reveal growth from the bottom for a smoother cinematic feel
+            const animatedPoints = chartPoints.map((point) => {
+              const y = revealY + (point.y - revealY) * eased;
+              return { ...point, y };
+            });
 
-        forecastCtx.lineTo(pad + width, pad + height);
-        forecastCtx.lineTo(pad, pad + height);
-        forecastCtx.closePath();
-        const fillGradient = forecastCtx.createLinearGradient(0, 0, 0, rect.height);
-        fillGradient.addColorStop(0, activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.18)' : 'rgba(91, 124, 250, 0.18)');
-        fillGradient.addColorStop(1, 'rgba(255,255,255,0)');
-        forecastCtx.fillStyle = fillGradient;
-        forecastCtx.fill();
+            function drawLine(points, startIndex, endIndex, stroke, shadow, lineWidth, dashed = false) {
+              if (!points.length) return;
+              forecastCtx.beginPath();
+              forecastCtx.moveTo(points[startIndex].x, points[startIndex].y);
+              for (let i = startIndex; i < endIndex; i++) {
+                const current = points[i];
+                const next = points[i + 1];
+                const c1x = current.x + step * 0.35;
+                const c1y = current.y;
+                const c2x = next.x - step * 0.35;
+                const c2y = next.y;
+                forecastCtx.bezierCurveTo(c1x, c1y, c2x, c2y, next.x, next.y);
+              }
+              forecastCtx.lineWidth = lineWidth;
+              forecastCtx.lineCap = 'round';
+              forecastCtx.lineJoin = 'round';
+              forecastCtx.strokeStyle = stroke;
+              forecastCtx.shadowColor = shadow;
+              forecastCtx.shadowBlur = dashed ? 8 : 18;
+              forecastCtx.setLineDash(dashed ? [8, 7] : []);
+              forecastCtx.stroke();
+              forecastCtx.setLineDash([]);
+            }
 
-        values.forEach((v, index) => {
-          const x = pad + index * step;
-          const normalized = (v - min) / Math.max(max - min, 1);
-          const y = pad + height - normalized * (height * 0.78 + 22);
-          forecastCtx.beginPath();
-          forecastCtx.fillStyle = 'rgba(255,255,255,0.92)';
-          forecastCtx.arc(x, y, index === values.length - 1 ? 5 : 3.5, 0, Math.PI * 2);
-          forecastCtx.fill();
-        });
+            drawLine(
+              animatedPoints,
+              0,
+              historicalEnd,
+              activeTheme === 'dark' ? 'rgba(148,163,184,0.75)' : 'rgba(100,116,139,0.8)',
+              'rgba(0,0,0,0)',
+              2.25
+            );
+
+            if (forecast.length) {
+              drawLine(
+                animatedPoints,
+                Math.max(0, historicalCount - 1),
+                animatedPoints.length - 1,
+                activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.98)' : 'rgba(91, 124, 250, 0.96)',
+                activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.45)' : 'rgba(91, 124, 250, 0.28)',
+                3.5
+              );
+            }
+
+            if (historical.length && forecast.length) {
+              const boundaryX = animatedPoints[Math.max(0, historicalCount - 1)].x;
+              forecastCtx.save();
+              forecastCtx.strokeStyle = activeTheme === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(15,23,42,0.22)';
+              forecastCtx.setLineDash([6, 8]);
+              forecastCtx.lineWidth = 1.5;
+              forecastCtx.beginPath();
+              forecastCtx.moveTo(boundaryX, pad + 8);
+              forecastCtx.lineTo(boundaryX, pad + height);
+              forecastCtx.stroke();
+              forecastCtx.restore();
+            }
+
+            const fillGradient = forecastCtx.createLinearGradient(0, 0, 0, rect.height);
+            fillGradient.addColorStop(0, activeTheme === 'dark' ? 'rgba(123, 140, 255, 0.16)' : 'rgba(91, 124, 250, 0.14)');
+            fillGradient.addColorStop(1, 'rgba(255,255,255,0)');
+            forecastCtx.beginPath();
+            animatedPoints.forEach((point, index) => {
+              if (index === 0) forecastCtx.moveTo(point.x, point.y);
+              else forecastCtx.lineTo(point.x, point.y);
+            });
+            forecastCtx.lineTo(pad + width, pad + height);
+            forecastCtx.lineTo(pad, pad + height);
+            forecastCtx.closePath();
+            forecastCtx.fillStyle = fillGradient;
+            forecastCtx.globalAlpha = 0.9;
+            forecastCtx.fill();
+            forecastCtx.globalAlpha = 1;
+
+            animatedPoints.forEach((point, index) => {
+              const forecastIndex = forecast.length ? index - Math.max(0, animatedPoints.length - forecast.length) : -1;
+              const isForecastPoint = forecastIndex >= 0;
+              forecastCtx.beginPath();
+              forecastCtx.fillStyle = isForecastPoint ? 'rgba(255,255,255,0.98)' : 'rgba(148,163,184,0.9)';
+              forecastCtx.shadowColor = isForecastPoint ? 'rgba(91,124,250,0.78)' : 'rgba(15,23,42,0.12)';
+              forecastCtx.shadowBlur = isForecastPoint ? 18 : 6;
+              forecastCtx.arc(point.x, point.y, index === animatedPoints.length - 1 ? 6 : 4, 0, Math.PI * 2);
+              forecastCtx.fill();
+
+              if (index === 0 || index === animatedPoints.length - 1 || index === historicalEnd || index % 3 === 0) {
+                forecastCtx.save();
+                forecastCtx.fillStyle = activeTheme === 'dark' ? 'rgba(226,232,240,0.94)' : 'rgba(15,23,42,0.78)';
+                forecastCtx.font = '12px Inter, sans-serif';
+                forecastCtx.textAlign = 'center';
+                forecastCtx.fillText(`₹${point.value.toFixed(0)}`, point.x, point.y - 12);
+                forecastCtx.restore();
+              }
+            });
+          }
+
+          if (progress < 1) {
+            requestAnimationFrame(() => drawFrame(Math.min(1, progress + 0.06)));
+          }
+        };
+
+        drawFrame(0);
       }
 
       function statusChip(node, ready, label) {
@@ -1594,6 +1685,23 @@
           modelStatusText.textContent = data.training ? 'Models are training in the background.' : 'Model intelligence is online.';
         } catch (error) {
           modelStatusText.textContent = 'Model status unavailable right now.';
+        }
+      }
+
+      async function loadMarketSeries(commodity = 'Onion') {
+        try {
+          const response = await fetch('/analytics');
+          const data = await response.json();
+          if (!response.ok || data.error) return;
+          const series = data.series?.[commodity] || [];
+          lastHistorical = series.filter((value) => value !== null && value !== undefined).map((value) => Number(value) || 0);
+          activeCommodity = commodity;
+          if (!lastForecast.length) {
+            drawForecast({ historical: lastHistorical, forecast: [] });
+            chartCaptionLeft.textContent = `${commodity} market history loaded.`;
+          }
+        } catch (error) {
+          console.warn('market series unavailable', error);
         }
       }
 
@@ -1643,8 +1751,13 @@
           aiMessage.textContent = 'Forecast generated successfully.';
 
           const forecast = Array.isArray(data.forecast) && data.forecast.length ? data.forecast : [price * 0.96, price * 0.98, price, price * 1.01, price * 1.02, price * 1.03, price * 1.04];
+          const previousCommodity = activeCommodity;
           lastForecast = forecast.map((item) => Number(item) || 0);
-          drawForecast(lastForecast);
+          activeCommodity = commodity;
+          if (!lastHistorical.length || previousCommodity !== commodity) {
+            await loadMarketSeries(commodity);
+          }
+          drawForecast({ historical: lastHistorical.length ? lastHistorical.slice(-14) : [], forecast: lastForecast });
           chartCaptionLeft.textContent = `${commodity} forecast updated.`;
           document.getElementById('themeStateText').textContent = activeTheme === 'dark' ? 'Dark' : 'Light';
           resultsTab?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1658,10 +1771,14 @@
       }
 
       predictBtn.addEventListener('click', predict);
+      document.getElementById('commodity')?.addEventListener('change', (event) => {
+        lastForecast = [];
+        loadMarketSeries(event.target.value);
+      });
       window.addEventListener('resize', () => drawForecast(lastForecast.length ? lastForecast : [0, 0, 0, 0, 0, 0, 0]));
       window.addEventListener('load', () => {
         loadStatus();
-        drawForecast([0, 0, 0, 0, 0, 0, 0]);
+        loadMarketSeries(document.getElementById('commodity')?.value || 'Onion');
       });
     })();
   </script>
