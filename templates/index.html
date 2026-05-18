@@ -1390,8 +1390,8 @@
               <div class="chart-wrap">
                 <div class="chart-legend" aria-label="Chart legend">
                   <span class="chart-tag"><span class="chart-swatch swatch-history"></span>Historical prices</span>
-                  <span class="chart-tag"><span class="chart-swatch swatch-forecast"></span>Forecast trend</span>
-                  <span class="chart-tag"><span class="chart-swatch swatch-boundary"></span>Forecast boundary</span>
+                  <span class="chart-tag"><span class="chart-swatch swatch-forecast"></span>Prediction trend</span>
+                  <span class="chart-tag"><span class="chart-swatch swatch-boundary"></span>Prediction boundary</span>
                 </div>
                 <div class="chart-axis-label chart-axis-y">₹ / quintal</div>
                 <div class="chart-axis-label chart-axis-x">Timeline</div>
@@ -1400,7 +1400,7 @@
 
               <div class="chart-caption">
                 <span id="chartCaptionLeft">Waiting for your input.</span>
-                <span id="chartCaptionRight">Live prediction</span>
+                <span id="chartCaptionRight">Prediction overview</span>
               </div>
             </div>
           </div>
@@ -1596,7 +1596,7 @@
           forecastCtx.fillStyle = activeTheme === 'dark' ? 'rgba(226,232,240,0.72)' : 'rgba(15,23,42,0.54)';
           forecastCtx.font = '600 15px Inter, sans-serif';
           forecastCtx.textAlign = 'center';
-          forecastCtx.fillText('Forecast will appear after prediction', rect.width / 2, rect.height / 2);
+          forecastCtx.fillText('Prediction will appear after submission', rect.width / 2, rect.height / 2);
           forecastCtx.restore();
           return;
         }
