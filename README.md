@@ -107,6 +107,10 @@ static/
 	css/
 		apple_ui.css
 images/
+	screenshots/
+		homepage.png
+		prediction.png
+		results.png
 templates/
 	index.html
 	predict.html
@@ -117,14 +121,22 @@ This structure shows the app entry point, model storage, training utilities, sta
 
 ## 📸 Screenshots
 
-<p align="center">
-	<img src="Forecast%20Results.png" alt="Forecast Results" width="31%" />
-	<img src="Home%20Page%20UI.png" alt="Home Page UI" width="31%" />
-	<img src="Prediction%20Demo.png" alt="Prediction Demo" width="31%" />
-</p>
+### Homepage UI
 
 <p align="center">
-	<strong>Forecast Results</strong> &nbsp;|&nbsp; <strong>Home Page UI</strong> &nbsp;|&nbsp; <strong>Prediction Demo</strong>
+  <img src="images/screenshots/homepage.png" width="1000">
+</p>
+
+### Prediction Demo
+
+<p align="center">
+  <img src="images/screenshots/prediction.png" width="1000">
+</p>
+
+### Forecast Results
+
+<p align="center">
+  <img src="images/screenshots/results.png" width="1000">
 </p>
 
 ## Dataset & Features
