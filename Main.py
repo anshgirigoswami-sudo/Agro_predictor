@@ -518,10 +518,24 @@ def predict():
         change_pct = round(((predicted - price_7d_ago) / price_7d_ago * 100), 1) if price_7d_ago else 0
         
         # Generate simple 7-day forecast
+        # Build a trend-aware path from the submitted 7-day lag price to the model output.
+        # This gives the frontend a more natural line instead of a flat synthetic curve.
         forecast = []
-        for i in range(7):
-            jitter = (i - 3) * 0.01 * predicted  # Slight variation
-            forecast.append(round(predicted * (1 + jitter), 2))
+        start_price = price_7d_ago if price_7d_ago > 0 else predicted
+        end_price = predicted
+        steps = 7
+        for i in range(steps):
+            t = i / (steps - 1) if steps > 1 else 1.0
+            smooth = t * t * (3 - 2 * t)
+            value = start_price + (end_price - start_price) * smooth
+            spread = abs(end_price - start_price)
+            if trend == 'up':
+                value += spread * 0.025 * t
+            elif trend == 'down':
+                value -= spread * 0.025 * t
+            elif trend == 'stable':
+                value += (spread * 0.01) * np.sin(t * np.pi)
+            forecast.append(round(max(value, 0), 2))
         
         return jsonify({
             'status': 'Success',

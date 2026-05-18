@@ -128,21 +128,21 @@
       height: 38px;
       border-radius: 14px;
       background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), transparent 28%),
-        linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, white 8%), color-mix(in srgb, var(--accent-3) 84%, white 16%));
-      box-shadow: 0 16px 32px color-mix(in srgb, var(--accent) 28%, transparent);
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.12), transparent 30%),
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, #d5ffe6 12%), color-mix(in srgb, var(--accent-3) 72%, #f2fff7 28%));
+      box-shadow: 0 16px 32px color-mix(in srgb, var(--accent) 24%, transparent), inset 0 1px 0 rgba(255,255,255,0.08);
       position: relative;
       overflow: hidden;
       animation: brandFloat 5.5s ease-in-out infinite;
     }
 
-    .brand-mark::after {
-      content: "";
+    .brand-mark img {
       position: absolute;
-      inset: 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.3);
-      opacity: 0.55;
+      inset: 6px;
+      width: calc(100% - 12px);
+      height: calc(100% - 12px);
+      object-fit: contain;
+      filter: drop-shadow(0 0 10px rgba(255,255,255,0.18));
     }
 
     .brand-copy {
@@ -1266,7 +1266,9 @@
     <header class="topbar">
       <div class="container topbar-inner">
         <a class="brand" href="#top" aria-label="AgriPredict AI home">
-          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-mark" aria-hidden="true">
+            <img src="/static/images/agri-ai-logo.svg" alt="">
+          </span>
           <span class="brand-copy">
             <strong>AgriPredict AI</strong>
             <span>Apple-level crop intelligence</span>
