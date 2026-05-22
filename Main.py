@@ -1,7 +1,6 @@
 import sys
 import os
 import glob
-import threading
 from typing import Tuple
 from math import sqrt
 import joblib
@@ -11,6 +10,9 @@ from flask import Flask, render_template, request, jsonify
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, TimeSeriesSplit, RandomizedSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+import threading
+import shutil
+from datetime import datetime
 
 # Fix for Windows terminal encoding issues
 try:
@@ -35,7 +37,7 @@ FEATURES = [
     'temp_mean', 'rainfall_mm', 'humidity', 'wind_speed',
     'temp_min', 'temp_max', 'temp_range',
     # Recent price history (keep only the most informative lags)
-    'price_lag_1d', 'price_lag_7d',
+    'price_lag_1d                   ', 'price_lag_7d',
     # Rolling / momentum stats
     'rolling_mean_7d', 'rolling_std_7d', 'price_momentum_7d',
     # Aggregated rainfall
@@ -51,14 +53,89 @@ FEATURES = [
 # In-memory model store and training flags
 models = {}
 metrics = {}
-training_lock = threading.Lock()
 is_training = False
+training_lock = threading.Lock()
 class DataHandler:
     @staticmethod
-    def load(path: str) -> pd.DataFrame:
+    def ingest_data(path: str, raw_dir: str = 'data/raw', anomalies_dir: str = 'data/anomalies') -> tuple:
+        """Create an immutable raw copy of the incoming dataset and run a lightweight anomaly check.
+
+        Returns tuple: (raw_copy_path, anomalies_path_or_None, df)
+        This helper is intentionally conservative and non-destructive.
+        """
+        os.makedirs(raw_dir, exist_ok=True)
+        os.makedirs(anomalies_dir, exist_ok=True)
+        ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        raw_name = f'master_raw_{ts}.csv'
+        raw_path = os.path.join(raw_dir, raw_name)
+        try:
+            shutil.copy2(path, raw_path)
+        except Exception:
+            raw_path = None
+
+        # lightweight read for anomaly detection
+        try:
+            df = pd.read_csv(path)
+        except Exception:
+            return raw_path, None, None
+
+        # normalize date column if present
+        if 'date' in df.columns and 'Date' not in df.columns:
+            df = df.rename(columns={'date': 'Date'})
+        if 'Date' in df.columns:
+            try:
+                df['Date'] = pd.to_datetime(df['Date'])
+            except Exception:
+                pass
+
+        # simple anomaly detection on Modal_Price: z-score per commodity
+        anomalies = []
+        anom_path = None
+        if 'Modal_Price' in df.columns and 'Commodity' in df.columns:
+            try:
+                df['Modal_Price_num'] = pd.to_numeric(df['Modal_Price'], errors='coerce')
+                for crop in df['Commodity'].dropna().unique():
+                    try:
+                        cdf = df[df['Commodity'].astype(str).str.strip().str.lower() == str(crop).strip().lower()]
+                        vals = cdf['Modal_Price_num'].dropna()
+                        if len(vals) < 5:
+                            continue
+                        m = vals.mean(); s = vals.std()
+                        if s == 0 or pd.isna(s):
+                            continue
+                        z = (cdf['Modal_Price_num'] - m).abs() / s
+                        anom_idx = z[z > 3].index.tolist()
+                        anomalies.extend(anom_idx)
+                    except Exception:
+                        continue
+                if anomalies:
+                    anom_df = df.loc[sorted(set(anomalies))]
+                    anom_path = os.path.join(anomalies_dir, f'anomalies_{ts}.csv')
+                    try:
+                        anom_df.to_csv(anom_path, index=False)
+                    except Exception:
+                        anom_path = None
+            except Exception:
+                anom_path = None
+            finally:
+                if 'Modal_Price_num' in df.columns:
+                    df = df.drop(columns=['Modal_Price_num'], errors='ignore')
+
+        return raw_path, anom_path, df
+
+    @staticmethod
+    def load(path: str, ingest_raw: bool = False) -> pd.DataFrame:
         # Prefer provided path; fall back to master.csv in project root
         if os.path.exists(path):
-            df = pd.read_csv(path)
+            if ingest_raw:
+                try:
+                    _, _, df = DataHandler.ingest_data(path)
+                    if df is None:
+                        df = pd.read_csv(path)
+                except Exception:
+                    df = pd.read_csv(path)
+            else:
+                df = pd.read_csv(path)
         else:
             fallback = os.path.join(BASE_DIR, 'master.csv')
             if os.path.exists(fallback):

@@ -248,7 +248,7 @@ def permutation_imp(model, X, y, n_repeats=10):
 
 def try_shap(model, X):
     try:
-        import shap
+        import shap  # type: ignore
         explainer = shap.TreeExplainer(model)
         shap_vals = explainer.shap_values(X)
         return shap, shap_vals
